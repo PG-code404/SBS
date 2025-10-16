@@ -1,7 +1,7 @@
 import logging
 import requests
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime
 from zoneinfo import ZoneInfo
 from config import (
     AGILE_URL, TIMEZONE, RECOMMENDED_SLOTS,
@@ -10,18 +10,10 @@ from config import (
 )
 from db import init_db, add_schedule
 
-# -----------------------------
-# Logging
-# -----------------------------
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-
 LOCAL_TZ = ZoneInfo(TIMEZONE)
 
-# -----------------------------
-# Agile Tariff Handling
-# -----------------------------
 def fetch_agile_rates():
-    """Fetch Agile rates from the configured endpoint."""
     try:
         resp = requests.get(AGILE_URL, timeout=10)
         resp.raise_for_status()
@@ -31,64 +23,51 @@ def fetch_agile_rates():
         return []
 
 def parse_rates_to_local(results):
-    """Return DataFrame with local naive datetimes in columns start, end, rate."""
     if not results:
         return pd.DataFrame(columns=["start", "end", "rate"])
     df = pd.DataFrame(results)
-    df['start'] = pd.to_datetime(df['valid_from'], utc=True).dt.tz_convert(LOCAL_TZ).dt.tz_localize(None)
-    df['end'] = pd.to_datetime(df['valid_to'], utc=True).dt.tz_convert(LOCAL_TZ).dt.tz_localize(None)
-    df['rate'] = df['value_inc_vat']
-    return df[['start', 'end', 'rate']].sort_values('start').reset_index(drop=True)
+    df["start"] = pd.to_datetime(df["valid_from"], utc=True).dt.tz_convert(LOCAL_TZ).dt.tz_localize(None)
+    df["end"] = pd.to_datetime(df["valid_to"], utc=True).dt.tz_convert(LOCAL_TZ).dt.tz_localize(None)
+    df["rate"] = df["value_inc_vat"]
+    return df[["start", "end", "rate"]].sort_values("start").reset_index(drop=True)
 
 def select_cheapest_upcoming_slots(df, slots_count):
-    """
-    Select the 'slots_count' cheapest *future* slots (end > now),
-    sorted by start time.
-    """
     now = datetime.now(LOCAL_TZ).replace(tzinfo=None)
-    future = df[df['end'] > now].copy()
-    if future.empty or slots_count <= 0:
+    future = df[df["end"] > now]
+    if future.empty:
         return pd.DataFrame()
-    cheapest = future.nsmallest(slots_count, 'rate')
-    return cheapest.sort_values('start').reset_index(drop=True)
+    return future.nsmallest(slots_count, "rate").sort_values("start").reset_index(drop=True)
 
-# -----------------------------
-# Main Scheduler Logic
-# -----------------------------
 def main():
-    logging.info("Scheduler starting: focusing only on cheapest Agile rate slots.")
+    logging.info("🔄 Scheduler running — selecting cheapest Agile slots...")
     init_db()
 
-    # 1) Fetch agile rates
     results = fetch_agile_rates()
     if not results:
-        logging.warning("No Agile rates returned. Exiting scheduler.")
+        logging.warning("⚠️ No Agile rates returned.")
         return
 
     df = parse_rates_to_local(results)
-
-    # 2) Select cheapest N slots (defined in config as RECOMMENDED_SLOTS)
-    slots_count = RECOMMENDED_SLOTS if RECOMMENDED_SLOTS > 0 else 4
-    logging.info(f"Selecting {slots_count} cheapest upcoming Agile rate slots...")
-
+    slots_count = max(1, RECOMMENDED_SLOTS or 4)
     chosen = select_cheapest_upcoming_slots(df, slots_count)
+
     if chosen.empty:
-        logging.warning("No suitable upcoming slots found.")
+        logging.warning("⚠️ No upcoming cheap slots found.")
         return
 
-    # 3) Insert chosen slots into DB
     inserted = 0
     for _, row in chosen.iterrows():
-        start_iso = row['start'].isoformat()
-        end_iso = row['end'].isoformat()
-        ok = add_schedule(start_iso, end_iso, mode='autonomous', price=row['rate'])
-        if ok:
+        if add_schedule(row["start"].isoformat(), row["end"].isoformat(), mode="autonomous", price=row["rate"]):
             inserted += 1
-            logging.info(f"Saved schedule: {start_iso} -> {end_iso} at {row['rate']} p/kWh")
+            logging.info(f"✅ Saved: {row['start']} → {row['end']} @ {row['rate']}p")
         else:
-            logging.info(f"Duplicate schedule ignored: {start_iso} -> {end_iso}")
+            logging.info(f"Duplicate skipped: {row['start']}")
 
-    logging.info(f"Scheduler finished. New schedules inserted: {inserted}")
+    logging.info(f"Scheduler complete — {inserted} new slots added.")
+
+def generate_schedules():
+    """Safe callable entrypoint for Executor"""
+    main()
 
 if __name__ == "__main__":
     main()

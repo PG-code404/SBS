@@ -268,7 +268,7 @@ def mark_as_executed(schedule_id: int,decision = 'executed'):
     cur = conn.cursor()
     now_iso = datetime.now(timezone.utc).isoformat()
 
-    executed_val = 1 if decision in ("executed", "completed") else 0
+    executed_val = 1 if decision in ("executed", "completed","cancelled") else 0
     expired_val = 1 if decision == "expired" else 0
 
     cur.execute(f"""
