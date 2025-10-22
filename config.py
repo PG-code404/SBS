@@ -53,7 +53,7 @@ SITE_ID = os.getenv("SITE_ID", "")
 # Battery reserve & thresholds
 BATTERY_RESERVE_START = int(os.getenv("BATTERY_RESERVE_START", 80))
 BATTERY_RESERVE_END = int(os.getenv("BATTERY_RESERVE_END", 20))
-SOC_SKIP_THRESHOLD = int(os.getenv("SOC_SKIP_THRESHOLD", 80))
+SOC_SKIP_THRESHOLD = int(os.getenv("SOC_SKIP_THRESHOLD", 90))
 
 # -----------------------------
 # Scheduler / Executor Timing
