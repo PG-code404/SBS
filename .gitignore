@@ -1,1 +1,9 @@
 .env
+
+__pycache__/
+*.pyc   
+
+data/*.db
+data/logs/*.log
+
+config.json

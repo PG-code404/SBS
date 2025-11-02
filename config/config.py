@@ -16,10 +16,29 @@ load_dotenv()
 SIMULATION_MODE = False
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 
+# -------------------------------------------------------
+# 2️⃣ Base project paths
+# -------------------------------------------------------
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # points to src/
+ROOT_DIR = os.path.dirname(BASE_DIR)                   # one level up
+DATA_DIR = os.path.join(ROOT_DIR, "data")
+CONFIG_DIR = os.path.join(ROOT_DIR, "config")
+
+os.makedirs(DATA_DIR, exist_ok=True)
+os.makedirs(CONFIG_DIR, exist_ok=True)
+
+# -------------------------------------------------------
+# 3️⃣ Default file paths
+# -------------------------------------------------------
+DB_PATH = os.path.join(DATA_DIR, "Force_Charging.db")
+LOG_PATH = os.path.join(DATA_DIR, "app.log")
+USER_CONFIG_PATH = os.path.join(CONFIG_DIR, "config.json")
+
 # -----------------------------
 # Database
 # -----------------------------
-DB_PATH = os.getenv("DB_PATH", "Force_Charging.db")
+
+
 DB_NAMESPACE = "schedules"
 DECISIONS_DB_TABLE = "decisions"
 
@@ -65,6 +84,10 @@ FUTURE_SCHEDULE_SLEEP = int(os.getenv("FUTURE_SCHEDULE_SLEEP", 60))
 GRACE_RETRY_INTERVAL = int(os.getenv("GRACE_RETRY_INTERVAL", 300))
 MAX_AGILE_PRICE_PPK = 22
 SCHEDULER_RUNS_PER_DAY=3
+KEEP_ALIVE_API_KEY = os.getenv("KEEP_ALIVE_API_KEY", "default-dev-key")
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "default-dev-key")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "default-dev-key")
+FLASK_SECRET_KEY = os.getenv("FLASK_SECRET_KEY", "change_me")
 
 # Interval to log active charging status (seconds)
 EXECUTOR_RUNNING_STATUS_INTERVAL = int(os.getenv("EXECUTOR_RUNNING_STATUS_INTERVAL", "300"))
@@ -84,72 +107,7 @@ SUNSET_HOUR = int(os.getenv("SUNSET_HOUR", 18))
 # -----------------------------
 SOLAR_POWER_SKIP_W = int(os.getenv("SOLAR_POWER_SKIP_W", 800))
 
-# -----------------------------
-# Customer Location (auto-resolve)
-# -----------------------------
-CUST_POSTCODE = os.getenv("CUST_POSTCODE", "SN40GJ")
 
-
-def get_location_details():
-    """Resolve latitude, longitude, and timezone automatically from postcode, with caching."""
-    if os.path.exists(CONFIG_CACHE):
-        try:
-            with open(CONFIG_CACHE, "r") as f:
-                cached = json.load(f)
-                if cached.get("postcode") == CUST_POSTCODE:
-                    return cached
-        except json.JSONDecodeError:
-            pass
-
-    print(f"🌍 Resolving location for postcode: {CUST_POSTCODE} ...")
-
-    try:
-        # 1️⃣ Get lat/lon via postcodes.io (UK open data)
-        r = requests.get(POSTCODE_URL_TEMPLATE.format(CUST_POSTCODE=CUST_POSTCODE), timeout=10)
-        r.raise_for_status()
-        result = r.json().get("result", {})
-        lat = result.get("latitude")
-        lon = result.get("longitude")
-
-        if lat is None or lon is None:
-            raise ValueError("Postcode lookup failed.")
-
-        # 2️⃣ Resolve timezone from Open-Meteo
-        tz_req = requests.get(
-            f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current_weather=true&timezone=auto",
-            timeout=10,
-        )
-        tz_data = tz_req.json()
-        timezone = tz_data.get("timezone", "Europe/London")
-
-        location_info = {
-            "postcode": CUST_POSTCODE,
-            "latitude": lat,
-            "longitude": lon,
-            "timezone": timezone,
-        }
-
-        with open(CONFIG_CACHE, "w") as f:
-            json.dump(location_info, f, indent=2)
-
-        print(f"✅ Location cached: {location_info}")
-        return location_info
-
-    except Exception as e:
-        print(f"⚠️ Failed to auto-resolve location: {e}. Falling back to manual values.")
-        return {
-            "postcode": CUST_POSTCODE,
-            "latitude": float(os.getenv("LATITUDE", "51.5074")), #Default for London
-            "longitude": float(os.getenv("LONGITUDE", "-0.1278")), #Default for London
-            "timezone": os.getenv("TIMEZONE", "Europe/London"),
-        }
-
-
-# Load resolved location
-LOCATION = get_location_details()
-LATITUDE = LOCATION["latitude"]
-LONGITUDE = LOCATION["longitude"]
-TIMEZONE = LOCATION["timezone"]
 
 # -----------------------------
 # Weather settings
@@ -160,6 +118,7 @@ WEATHER_CACHE_EXPIRY_HOURS = int(os.getenv("WEATHER_CACHE_EXPIRY_HOURS", 6))
 MIN_SOLAR_EXPECTED_TODAY = float(os.getenv("MIN_SOLAR_EXPECTED_TODAY", 2.0))
 WEATHER_HOURLY_VARS = ["temperature_2m", "cloud_cover"]
 WEATHER_CACHE_TTL = int(os.getenv("WEATHER_CACHE_TTL", "3600"))
+TIMEZONE = "Europe/London"  # Default, will be dynamically resolved below
 
 # -----------------------------
 # Weather thresholds
@@ -195,8 +154,3 @@ PURGE_DAYS = int(os.getenv("PURGE_DAYS", 2))
 RECOMMENDED_SLOTS = int(os.getenv("RECOMMENDED_SLOTS", "5"))
 SLOT_HOURS = float(os.getenv("SLOT_HOURS", "0.5"))
 
-# -----------------------------
-# Debug info
-# -----------------------------
-if __name__ == "__main__":
-    print(f"Latitude: {LATITUDE}, Longitude: {LONGITUDE}, Timezone: {TIMEZONE}")

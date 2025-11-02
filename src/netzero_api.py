@@ -1,6 +1,6 @@
 import requests
 import logging
-from config import NETZERO_API_KEY, SITE_ID, NETZERO_URL_TEMPLATE, SIMULATION_MODE
+from config.config import NETZERO_API_KEY, SITE_ID, NETZERO_URL_TEMPLATE, SIMULATION_MODE
 
 NETZERO_URL = NETZERO_URL_TEMPLATE.format(SITE_ID=SITE_ID)
 
@@ -23,7 +23,7 @@ def set_charge(reserve: int, grid_charging: bool) -> bool:
     headers = {"Authorization": f"Bearer {NETZERO_API_KEY}", "Content-Type": "application/json"}
 
     try:
-        resp = requests.post(NETZERO_URL, json=payload, headers=headers, timeout=10)
+        resp = requests.post(NETZERO_URL, json=payload, headers=headers, timeout=30)
         resp.raise_for_status()
         logging.info(f"NetZero set_charge ok: reserve={reserve} grid_charging={grid_charging}")
         return True

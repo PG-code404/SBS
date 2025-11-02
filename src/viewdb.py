@@ -1,5 +1,5 @@
 import sqlite3
-from config import DB_PATH, DB_NAMESPACE
+from config.config import DB_PATH, DB_NAMESPACE
 
 # Connect to the database
 conn = sqlite3.connect(DB_PATH)
@@ -41,7 +41,7 @@ else:
 conn.close()
 
 import sqlite3
-from config import DB_PATH
+from config.config import DB_PATH
 
 TABLE_NAME = "decisions"
 

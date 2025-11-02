@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+  <header id="dashboard-header">
+        <div id="header-left">
+            <span>Powerwall Automation</span>
+        </div>
+        <div id="header-right">
+            <span id="active-schedule-label">
+            Active Schedule: 
+            <span id="active_schedule_id" class="value">{{ active_schedule_id or "None" }}</span>
+        </span>
+            <button id="logout-btn">Logout</button>
+        </div>
+    </header>
+<head>
+    <title>⚙️ Powerwall Scheduler Dashboard</title>
+    <link rel="stylesheet" href="/static/style.css?v=2">
+</head>
+
+<body>
+    <h1>⚙️ Powerwall Scheduler Dashboard</h1>
+
+    <div class="info-grid">
+        <div class="card">
+            <div class="value">{{ now }}</div>
+            <div class="label">Current Time</div>
+        </div>
+        <div class="card">
+            <div id="executor_status" class="value">{{ executor_status }}</div>
+            <div class="label">Executor Status</div>
+        </div>
+        <div class="card">
+            <div id="last_scheduler_run" class="value">{{ last_scheduler_run }}</div>
+            <div class="label">Last Scheduler Run</div>
+        </div>
+
+        <div class="card">
+            <div id="next_schedule_time" class="value">{{ next_schedule_time }}</div>
+            <div class="label">Next Schedule Start</div>
+        </div>
+        <div class="card">
+            <div class="value">{{ uptime }}</div>
+            <div class="label">Server Uptime</div>
+        </div>
+    </div>
+
+    <hr>
+
+    <h2>Add Manual Schedule</h2>
+    <form id="manualForm" onsubmit="addSchedule(event)">
+        <label>Start:</label>
+        <input type="datetime-local" id="start_time" required>
+        <label>End:</label>
+        <input type="datetime-local" id="end_time" required>
+        <label>Target SOC:</label>
+        <input type="number" id="target_soc" value="80" min="0" max="100">
+        <button type="submit">Add</button>
+    </form>
+
+    <hr>
+
+    <h2>📅 Upcoming Schedules</h2>
+    <table>
+        <thead>
+            <tr><th>ID</th><th>Start</th><th>End</th><th>Target SOC</th><th>£ P/KWh</th><th>Source</th><th>Delete Schedule</th></tr>
+        </thead>
+        <tbody id="schedule-table-body"></tbody>
+    </table>
+<script src="/static/dashboard.js?v=2"></script>
+</body>
+</html>

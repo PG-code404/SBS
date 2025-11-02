@@ -2,7 +2,7 @@ import sqlite3
 import logging
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List, Tuple
-from config import DB_PATH, DB_NAMESPACE, DECISIONS_DB_TABLE
+from config.config import DB_PATH, DB_NAMESPACE, DECISIONS_DB_TABLE
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
@@ -11,9 +11,43 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 # -----------------------------
 def get_connection():
     """Return a SQLite connection with default row factory."""
-    conn = sqlite3.connect(DB_PATH, detect_types=sqlite3.PARSE_DECLTYPES)
+    conn = sqlite3.connect(DB_PATH, detect_types=sqlite3.PARSE_DECLTYPES, timeout=30, check_same_thread=False)
+    conn.execute("PRAGMA journal_mode=WAL;")
     conn.row_factory = sqlite3.Row
     return conn
+
+import threading, time
+
+db_lock = threading.Lock()
+
+def safe_execute(sql, params=(), commit=True, conn=None):
+    """Thread-safe DB execution with retry on locked errors."""
+    for attempt in range(5):
+        try:
+            with db_lock:
+                own_conn = False
+                if conn is None:
+                    conn = get_connection()
+                    own_conn = True
+
+                cur = conn.cursor()
+                cur.execute(sql, params)
+                if commit:
+                    conn.commit()
+
+                if own_conn:
+                    conn.close()
+                return True
+
+        except sqlite3.OperationalError as e:
+            if "locked" in str(e).lower():
+                logging.warning(f"DB locked, retrying ({attempt+1}/5)...")
+                logging.warning(f"DB locked by another process — thread: {threading.current_thread().name}")
+                time.sleep(0.3)
+                continue
+            else:
+                raise
+    raise RuntimeError("Failed to execute DB query after retries")
 
 
 # -----------------------------
@@ -35,6 +69,9 @@ def _ensure_columns():
     """
     conn = get_connection()
     cur = conn.cursor()
+    cur.execute("PRAGMA journal_mode=WAL;")
+     # Enable Write-Ahead Logging mode (better for concurrency)
+    conn.commit()
 
     # Base table
     cur.execute(f"""
@@ -42,7 +79,7 @@ def _ensure_columns():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             start_time TEXT NOT NULL,
             end_time TEXT NOT NULL,
-            mode TEXT NOT NULL,
+            mode TEXT DEFAULT 'autonomous',
             executed INTEGER DEFAULT 0,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
@@ -58,7 +95,10 @@ def _ensure_columns():
         "expired": "INTEGER DEFAULT 0",
         "decision": "TEXT DEFAULT NULL",
         "decision_at": "TEXT DEFAULT NULL",
-        "price_p_per_kwh": "REAL DEFAULT NULL"
+        "price_p_per_kwh": "REAL DEFAULT NULL",
+        "manual_override": "INTEGER DEFAULT 0",
+        "target_soc": "INTEGER DEFAULT 0",
+        "source": "TEXT DEFAULT 'scheduler'",
     }
 
     for col, col_def in optional_columns.items():
@@ -117,7 +157,7 @@ def init_db():
 
 import sqlite3
 from datetime import datetime, timedelta
-from config import DB_PATH
+from config.config import DB_PATH
 
 # ---------------------------------------
 # Agile Tariff Helpers
@@ -195,27 +235,24 @@ def get_stored_price(schedule_id):
 
 
 def add_schedule(start_time_iso: str, end_time_iso: str, mode: str, price: Optional[float] = None) -> bool:
-    """
-    Insert schedule if not exists (unique on start_time + end_time).
-    """
-    conn = get_connection()
-    cur = conn.cursor()
+    """Insert a new schedule slot safely."""
+    #conn = get_connection()
     try:
-        cur.execute(
-            f"INSERT INTO {DB_NAMESPACE} (start_time, end_time, mode, price_p_per_kwh) VALUES (?, ?, ?, ?)",
-            (start_time_iso, end_time_iso, mode, price)
-        )
-        conn.commit()
-        logging.info(f"Added schedule {start_time_iso} -> {end_time_iso} [{mode}] @ {price} p/kWh")
+        sql = f"""
+            INSERT INTO {DB_NAMESPACE} (start_time, end_time, mode, price_p_per_kwh)
+            VALUES (?, ?, ?, ?)
+        """
+        safe_execute(sql, (start_time_iso, end_time_iso, mode, price))
+        logging.info(f"✅ Added schedule: {start_time_iso} → {end_time_iso} [{mode}] @ {price} p/kWh")
         return True
     except sqlite3.IntegrityError:
-        logging.debug("Duplicate schedule detected; skipping insert.")
+        logging.debug(f"⚠️ Duplicate schedule detected: {start_time_iso}")
         return False
     except Exception as e:
-        logging.error(f"Failed to add schedule: {e}")
+        logging.error(f"❌ Failed to add schedule: {e}")
         return False
-    finally:
-        conn.close()
+    #finally:
+        #conn.close()
 
 
 def fetch_pending_schedules() -> List[Tuple]:
@@ -223,8 +260,9 @@ def fetch_pending_schedules() -> List[Tuple]:
     conn = get_connection()
     cur = conn.cursor()
     cur.execute(f"""
-        SELECT id, start_time, end_time, mode, executed, created_at,last_retry_utc,
-               retry_count, expired, decision,decision_at,price_p_per_kwh
+        SELECT id, start_time, end_time, mode, executed, created_at, last_retry_utc,
+           retry_count, expired, decision, decision_at, price_p_per_kwh,
+           target_soc, manual_override, source
         FROM {DB_NAMESPACE}
         WHERE executed = 0 AND (expired IS NULL OR expired = 0)
         ORDER BY start_time ASC
@@ -248,18 +286,19 @@ def fetch_pending_schedules() -> List[Tuple]:
 #     conn.close()
 #     return rows
 
-def update_schedule_price(schedule_id: int, price: float):
-    """Update stored price for an existing schedule."""
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute(f"""
-        UPDATE {DB_NAMESPACE}
-        SET price_p_per_kwh = ?
-        WHERE id = ?
-    """, (price, schedule_id))
-    conn.commit()
-    conn.close()
-    logging.info(f"Updated schedule {schedule_id} with price {price:.3f} p/kWh.")
+def update_schedule_price(schedule_id: int, new_price: float) -> bool:
+    """Update the price for a given schedule ID."""
+    #conn = get_connection()
+    try:
+        sql = f"UPDATE {DB_NAMESPACE} SET price_p_per_kwh = ? WHERE id = ?"
+        safe_execute(sql, (new_price, schedule_id))
+        logging.info(f"💰 Updated schedule {schedule_id} with new price {new_price} p/kWh")
+        return True
+    except Exception as e:
+        logging.error(f"❌ Failed to update price for schedule {schedule_id}: {e}")
+        return False
+    #finally:
+        #conn.close()
 
 
 def mark_as_executed(schedule_id: int,decision = 'executed'):
@@ -271,13 +310,14 @@ def mark_as_executed(schedule_id: int,decision = 'executed'):
     executed_val = 1 if decision in ("executed", "completed","cancelled") else 0
     expired_val = 1 if decision == "expired" else 0
 
-    cur.execute(f"""
+
+    sql=f"""
         UPDATE {DB_NAMESPACE}
         SET executed = ?, expired = ?, decision = ?,
             decision_at = ?
         WHERE id = ?
-    """, (executed_val, expired_val, decision,now_iso, schedule_id)
-    )
+    """
+    safe_execute(sql,(executed_val, expired_val, decision, now_iso, schedule_id))
     conn.commit()
     conn.close()
     logging.info(f"Schedule {schedule_id} marked as {decision}.")
@@ -486,3 +526,23 @@ def show_schema():
     for r in cur.fetchall():
         logging.info(r["sql"])
     conn.close()
+
+def add_manual_override(start_time_iso: str, end_time_iso: str, target_soc:int) -> bool:
+    """Add a manual override period."""
+    conn = get_connection()
+    try:
+        sql = f"""
+            INSERT INTO {DB_NAMESPACE} (start_time, end_time, target_soc, manual_override,source)
+            VALUES (?, ?, ?, 1,'User')
+        """
+        safe_execute(sql, (start_time_iso, end_time_iso, target_soc), conn=conn)
+        logging.info(f"🟢 Manual override added: {start_time_iso} → {end_time_iso} [{target_soc}]")
+        return True
+    except sqlite3.IntegrityError:
+        logging.debug(f"⚠️ Duplicate manual override: {start_time_iso}")
+        return False
+    except Exception as e:
+        logging.error(f"❌ Failed to add manual override: {e}")
+        return False
+    finally:
+        conn.close()

@@ -1,0 +1,82 @@
+body {
+    font-family: 'Segoe UI', Arial;
+    background: #f6f8fa;
+    color: #222;
+    text-align: center;
+    padding-top: -15px;
+}
+
+h1 {
+    color: #0077cc;
+}
+
+.card {
+    background: white;
+    display: inline-block;
+    padding: 20px 30px;
+    border-radius: 15px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    margin: 10px;
+    min-width: 200px;
+}
+
+.value {
+    font-size: 1.3em;
+    font-weight: 600;
+}
+
+.label {
+    color: #777;
+    font-size: 0.85em;
+}
+
+form {
+    margin-top: 20px;
+}
+
+input, button {
+    margin: 6px;
+    padding: 6px 10px;
+}
+
+table {
+    margin: 20px auto;
+    border-collapse: collapse;
+    width: 90%;
+}
+
+table, th, td {
+    border: 1px solid #ccc;
+    padding: 8px;
+}
+
+/* Scheduler highlights */
+.active-schedule {
+    background-color: #d1ffd6; /* light green */
+    font-weight: bold;
+}
+
+.next-schedule {
+    background-color: #fff9c4; /* light yellow */
+    font-weight: bold;
+}
+
+#dashboard-header {
+    display: flex;
+    justify-content: space-between; /* left and right sides */
+    align-items: center;
+    padding: 10px 20px;
+    background-color: #f2f2f2; /* light gray */
+    border-bottom: 1px solid #ccc;
+}
+
+#header-right {
+    display: flex;
+    align-items: center;
+    gap: 15px; /* spacing between active schedule and logout */
+}
+
+#header-right button {
+    padding: 5px 10px;
+    cursor: pointer;
+}

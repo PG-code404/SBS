@@ -2,7 +2,7 @@ import requests
 import logging
 import pandas as pd
 import time
-from config import WEATHER_API_URL, LATITUDE, LONGITUDE, TIMEZONE, WEATHER_HOURLY_VARS, WEATHER_CACHE_TTL
+from config.config import WEATHER_API_URL, LATITUDE, LONGITUDE, TIMEZONE, WEATHER_HOURLY_VARS, WEATHER_CACHE_TTL
 
 _cached = {"ts": 0, "df": None}
 
