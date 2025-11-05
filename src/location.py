@@ -2,7 +2,7 @@
 import os
 import json
 import requests
-from config.config import POSTCODE_URL_TEMPLATE, CONFIG_CACHE
+from config.config import POSTCODE_URL_TEMPLATE, LOCATION_CACHE
 
 # -----------------------------
 # Customer Location (auto-resolve)
@@ -12,9 +12,9 @@ CUST_POSTCODE = os.getenv("CUST_POSTCODE", "SN40GJ")
 
 def get_location_details():
     """Resolve latitude, longitude, and timezone automatically from postcode, with caching."""
-    if os.path.exists(CONFIG_CACHE):
+    if os.path.exists(LOCATION_CACHE):
         try:
-            with open(CONFIG_CACHE, "r") as f:
+            with open(LOCATION_CACHE, "r") as f:
                 cached = json.load(f)
                 if cached.get("postcode") == CUST_POSTCODE:
                     return cached
@@ -49,7 +49,7 @@ def get_location_details():
             "timezone": timezone,
         }
 
-        with open(CONFIG_CACHE, "w") as f:
+        with open(LOCATION_CACHE, "w") as f:
             json.dump(location_info, f, indent=2)
 
         print(f"✅ Location cached: {location_info}")

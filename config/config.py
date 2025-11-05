@@ -23,9 +23,11 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # points to src/
 ROOT_DIR = os.path.dirname(BASE_DIR)                   # one level up
 DATA_DIR = os.path.join(ROOT_DIR, "data")
 CONFIG_DIR = os.path.join(ROOT_DIR, "config")
+CACHE_DIR = os.path.join(ROOT_DIR, "cache")
 
 os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(CONFIG_DIR, exist_ok=True)
+os.makedirs(CACHE_DIR, exist_ok=True)
 
 # -------------------------------------------------------
 # 3️⃣ Default file paths
@@ -46,22 +48,22 @@ DECISIONS_DB_TABLE = "decisions"
 # Defining Cache folder
 # -----------------------------
 
-CONFIG_CACHE = os.path.join(os.path.expanduser("~"), ".pw_cache", "location_cache.json")
-os.makedirs(os.path.dirname(CONFIG_CACHE), exist_ok=True)
+#CONFIG_CACHE = os.path.join(os.path.expanduser("~"), ".pw_cache", "location_cache.json")
+#os.makedirs(os.path.dirname(CONFIG_CACHE), exist_ok=True)
 
-"""
-LOCATION_CACHE = CACHE_DIR / "location_cache.json"
-WEATHER_CACHE = CACHE_DIR / "weather_cache.json"
-AGILE_CACHE = CACHE_DIR / "agile_cache.json"
-"""
+LOCATION_CACHE = os.path.join(CACHE_DIR,"location_cache.json")
+WEATHER_CACHE = os.path.join(CACHE_DIR, "weather_cache.json")
+AGILE_CACHE = os.path.join(CACHE_DIR, "agile_cache.json")
+
 
 # -----------------------------
 # URLs
 # -----------------------------
 NETZERO_URL_TEMPLATE = "https://api.netzero.energy/api/v1/{SITE_ID}/config"
 AGILE_URL = "https://api.octopus.energy/v1/products/AGILE-18-02-21/electricity-tariffs/E-1R-AGILE-18-02-21-H/standard-unit-rates/"
-WEATHER_API_URL = "https://api.open-meteo.com/v1/forecast"
+WEATHER_API_BASEURL = "https://api.open-meteo.com/v1/forecast"
 POSTCODE_URL_TEMPLATE = "https://api.postcodes.io/postcodes/{CUST_POSTCODE}"
+OCTOPUS_GRAPHQL_URL = "https://api.octopus.energy/v1/graphql/"
 
 # -----------------------------
 # NetZero API Configuration
@@ -119,6 +121,14 @@ MIN_SOLAR_EXPECTED_TODAY = float(os.getenv("MIN_SOLAR_EXPECTED_TODAY", 2.0))
 WEATHER_HOURLY_VARS = ["temperature_2m", "cloud_cover"]
 WEATHER_CACHE_TTL = int(os.getenv("WEATHER_CACHE_TTL", "3600"))
 TIMEZONE = "Europe/London"  # Default, will be dynamically resolved below
+PV_TILT_ANGLE = 30 # degrees, default to 0 (Horizontal)
+PV_AZIMUTH_ANGLE = 25 # degrees, default to 0 (0° South, -90° East, 90° West, ±180° North)
+PV_SOTC_WATTAGE = 500  # Standard Test Condition wattage
+PV_NOMINAL_WATTAGE = 376  # User system size in Watts
+PV_NOMINAL_IRRADIANCE = 1000  # W/m²
+PV_NUM_PANELS = 20  # Max number of panels
+PV_DERATING_FACTOR = 0.95  # 85% efficiency
+
 
 # -----------------------------
 # Weather thresholds
@@ -154,3 +164,5 @@ PURGE_DAYS = int(os.getenv("PURGE_DAYS", 2))
 RECOMMENDED_SLOTS = int(os.getenv("RECOMMENDED_SLOTS", "5"))
 SLOT_HOURS = float(os.getenv("SLOT_HOURS", "0.5"))
 
+# USER
+CUST_POSTCODE = os.getenv("CUST_POSTCODE", "SN40GJ") # UK Postcode of the site

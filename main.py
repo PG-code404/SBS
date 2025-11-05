@@ -18,7 +18,8 @@ from config.config import (
     SOLAR_POWER_SKIP_W, SIMULATION_MODE,
     EXECUTOR_POLL_INTERVAL, EXECUTOR_SLEEP_AHEAD_SEC,
     EXECUTOR_IDLE_SLEEP_SEC, GRACE_RETRY_INTERVAL,
-    AGILE_URL, MAX_AGILE_PRICE_PPK, SCHEDULER_RUNS_PER_DAY,KEEP_ALIVE_API_KEY
+    AGILE_URL, MAX_AGILE_PRICE_PPK, SCHEDULER_RUNS_PER_DAY,
+    KEEP_ALIVE_API_KEY, CHARGE_RATE_KW
 )
 from src.db import (
     init_db,fetch_pending_schedules, mark_as_executed,
@@ -26,6 +27,10 @@ from src.db import (
     get_stored_price, mark_all_expired
 )
 from src.netzero_api import get_battery_status, set_charge
+
+from src.SolarData import hasEnoughSolar, fetch_solar_data
+
+from src.Octopus_saving_sessions import get_kraken_token, get_saving_sessions, is_in_saving_session
 
 PROCESS_START_TIME = datetime.now()
 # -----------------------------
@@ -44,6 +49,7 @@ PEAK_END = PEAK_END or datetime.strptime("19:00", "%H:%M").time()
 GRACE_RETRY_INTERVAL = GRACE_RETRY_INTERVAL or 300
 MAX_AGILE_PRICE_PPK = MAX_AGILE_PRICE_PPK or 22  # p/kWh default limit
 HEARTBEAT_INTERVAL = 60  # seconds
+
 
 # -----------------------------
 # Executor Status
@@ -147,8 +153,6 @@ def post_status_to_dashboard():
         logging.info(f"Could not post status to dashboard: {e}")
 
 
-
-
 def sleep_with_heartbeat(total_seconds):
     slept = 0
     while slept < total_seconds:
@@ -202,6 +206,17 @@ def process_schedule_row(row, now: datetime):
     schedule_id = row["id"]
     start_iso = row["start_time"]
     end_iso = row["end_time"]
+    OCTO_TOKEN = None
+    SAVING_SESSIONS = []
+
+    try:
+        OCTO_TOKEN = get_kraken_token()
+        SAVING_SESSIONS = get_saving_sessions(OCTO_TOKEN)
+        logging.info(f"⚡ Saving Sessions loaded: {len(SAVING_SESSIONS)}")
+    except Exception as e:
+        logging.error(f"⚠️ Octopus Saving Sessions disabled — proceeding without: {e}")
+        OCTO_TOKEN = None
+        SAVING_SESSIONS = []
 
     logging.info(f"Processing schedule {schedule_id}: {start_iso} → {end_iso}")
 
@@ -211,7 +226,7 @@ def process_schedule_row(row, now: datetime):
         end_dt = datetime.fromisoformat(end_iso).replace(tzinfo=LOCAL_TZ)
     except Exception:
         logging.error("Invalid datetime format; marking executed.")
-        mark_as_executed(schedule_id, "Errored - Invalid datetime")
+        mark_as_executed(schedule_id, "cancelled")
         add_decision(schedule_id, start_iso, end_iso, 'error', 'bad_datetime', None, None, None)
         return
 
@@ -243,6 +258,18 @@ def process_schedule_row(row, now: datetime):
         })
         post_status_to_dashboard()
         return
+
+    try:
+        if OCTO_TOKEN and SAVING_SESSIONS:
+            if is_in_saving_session(start_dt, end_dt, SAVING_SESSIONS):
+                print(f"❌ Schedule {schedule_id} cancelled — Octopus Saving Session")
+                mark_as_executed(schedule_id, "cancelled")
+                add_decision(schedule_id, start_iso, end_iso, 'cancelled', 'Saving sessions', None, None, None)
+                return
+    except Exception as e:
+        # Fail gracefully, simply ignore Octopus logic
+        logging.error(f"⚠️ Saving Session check failed — continuing schedule: {e}")
+
 
     # --- Manual override logic ---
     manual_override = row["manual_override"] if "manual_override" in row.keys() else 0
@@ -368,10 +395,27 @@ def process_schedule_row(row, now: datetime):
         return
 
     try:
+        solar_only = hasEnoughSolar(start_dt, end_dt, target_energy_kwh=CHARGE_RATE_KW)
+        if solar_only:
+            set_charge(BATTERY_RESERVE_END, grid_charging=False)
+            logging.info("Solar sufficient for schedule — enabling solar-only charging.")
+            add_decision(schedule_id, start_iso, end_iso, 'cancelled',
+                    "Forecasted enough Solar for schedule",
+                     soc, solar_power, island)
+            EXECUTOR_STATUS.update({"message": f"Schedule {schedule_id} cancelled — Forecasted enough Solar"})
+            mark_as_executed(schedule_id, "cancelled")
+            post_status_to_dashboard()
+            active_schedule_id = None
+            return
+    except Exception as e:
+        logging.error(f"⚠️ Solar forecast check failed — proceeding with grid charging: {e}")
+
+    try:
         if soc < BATTERY_RESERVE_START:
          reserve_value = BATTERY_RESERVE_START
         else:
          reserve_value = SOC_SKIP_THRESHOLD
+
         set_charge(reserve=reserve_value, grid_charging=True)
         logging.info(f"⚡ Charging started for schedule {schedule_id}, reserve={reserve_value}")
         duration = (end_dt - now).total_seconds()
@@ -430,7 +474,11 @@ def main():
 
     while True:
         now = datetime.now(LOCAL_TZ)
+        # Marking schedules expired that are past end time before fetching pending schedules
         mark_all_expired(now)
+        # Call to get forecasted solar data
+        fetch_solar_data()
+        # Begin to check if scheduler needs to run again
         last_scheduler_run = maybe_run_scheduler(last_scheduler_run, runs_per_day)
         last_scheduler_run_iso = last_scheduler_run.isoformat() if last_scheduler_run else None
         EXECUTOR_STATUS.update({

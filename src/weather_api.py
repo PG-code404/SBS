@@ -2,7 +2,8 @@ import requests
 import logging
 import pandas as pd
 import time
-from config.config import WEATHER_API_URL, LATITUDE, LONGITUDE, TIMEZONE, WEATHER_HOURLY_VARS, WEATHER_CACHE_TTL
+from config.config import WEATHER_API_BASEURL, TIMEZONE, WEATHER_HOURLY_VARS, WEATHER_CACHE_TTL
+import location
 
 _cached = {"ts": 0, "df": None}
 
@@ -16,12 +17,12 @@ def fetch_weather_forecast():
     """
     try:
         params = {
-            "latitude": LATITUDE,
-            "longitude": LONGITUDE,
+            "latitude": location.LATITUDE,
+            "longitude": location.LONGITUDE,
             "hourly": ",".join(WEATHER_HOURLY_VARS),
             "timezone": TIMEZONE,
         }
-        resp = requests.get(WEATHER_API_URL, params=params, timeout=10)
+        resp = requests.get(WEATHER_API_BASEURL, params=params, timeout=10)
         resp.raise_for_status()
         data = resp.json()
         hourly = data.get("hourly", {})
