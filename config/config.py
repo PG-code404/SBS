@@ -69,7 +69,7 @@ OCTOPUS_GRAPHQL_URL = "https://api.octopus.energy/v1/graphql/"
 # NetZero API Configuration
 # -----------------------------
 NETZERO_API_KEY = os.getenv("NETZERO_API_KEY", "")
-SITE_ID = os.getenv("SITE_ID", "")
+SITE_ID = os.getenv("NETZERO_SITE_ID", "")
 
 # Battery reserve & thresholds
 BATTERY_RESERVE_START = int(os.getenv("BATTERY_RESERVE_START", 80))
