@@ -18,3 +18,8 @@ cache/*.json
 config.json
 
 .pythonlibs/
+cache
+.cache.sqlite
+.replit
+
+
