@@ -1,9 +1,20 @@
 .env
 
 __pycache__/
-*.pyc   
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
 
 data/*.db
 data/logs/*.log
+cache/*.json
 
 config.json
+
+.pythonlibs/
