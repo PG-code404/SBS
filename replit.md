@@ -16,6 +16,9 @@ The system automatically schedules charging during cheap electricity periods whi
   - Created .env.example with all configuration options
   - Created run.py entry point script
   - Updated .gitignore for Python environment
+  - Secured /update_status endpoint with authentication
+  - Configured deployment for VM target (stateful application)
+  - Verified application runs successfully with all integrations
 
 ## Project Architecture
 

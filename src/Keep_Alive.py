@@ -237,6 +237,7 @@ def get_status():
     })
 
 @app.route("/update_status", methods=["POST"])
+@allow_internal_or_logged_in
 def update_status():
     """
     Receives executor status updates from the scheduler/executor
