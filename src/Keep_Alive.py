@@ -278,7 +278,7 @@ def delete_schedule(schedule_id: int):
 # Server runner
 # -----------------------------
 def _run_server():
-    serve(app, host="0.0.0.0", port=int(os.getenv("KEEP_ALIVE_PORT", "8080")))
+    serve(app, host="0.0.0.0", port=int(os.getenv("KEEP_ALIVE_PORT", "5000")))
 
 def keep_alive():
     threading.Thread(target=_run_server, daemon=True).start()
