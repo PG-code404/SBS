@@ -1,26 +1,25 @@
-# For more information, please refer to https://aka.ms/vscode-docker-python
 FROM python:3-slim
 
-# Keeps Python from generating .pyc files in the container
-ENV PYTHONDONTWRITEBYTECODE=1
+# Set working directory
+WORKDIR /SBS
 
-# Turns off buffering for easier container logging
-ENV PYTHONUNBUFFERED=1
-
-# Install pip requirements
+# Copy requirements first to leverage Docker cache
 COPY requirements.txt .
-RUN python -m pip install -r requirements.txt
+RUN python -m pip install --no-cache-dir -r requirements.txt
 
-# Expose port 8080 (Cloud Run default)
-EXPOSE 8080
+# Copy the rest of the project
+COPY . .
 
-WORKDIR /app
-COPY . /app
+# Create non-root user and set permissions
+RUN adduser -u 5678 --disabled-password --gecos "" appuser \
+    && chown -R appuser /SBS \
+    && chmod -R 777 /SBS
 
-# Creates a non-root user with an explicit UID and adds permission to access the /app folder
-# For more info, please refer to https://aka.ms/vscode-docker-python-configure-containers
-RUN adduser -u 5678 --disabled-password --gecos "" appuser && chown -R appuser /app
+# Switch to non-root user
 USER appuser
 
-# During debugging, this entry point will be overridden. For more information, please refer to https://aka.ms/vscode-docker-python-debug
+# Expose port 8080 for Cloud Run
+EXPOSE 8080
+
+# Run Flask app with Waitress
 CMD ["python", "main.py"]
