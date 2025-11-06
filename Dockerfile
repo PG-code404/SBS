@@ -22,4 +22,4 @@ USER appuser
 EXPOSE 8080
 
 # Run Flask app with Waitress
-CMD ["python", "main.py"]
+CMD ["python", "run.py"]

@@ -18,7 +18,7 @@ if __name__ == "__main__":
     print("Battery Charging Scheduler - Starting...")
     print("=" * 60)
 
-    port = os.getenv("KEEP_ALIVE_PORT", "5000")
+    port = os.getenv("KEEP_ALIVE_PORT", "8080")
     print(f"Flask web server will start on http://0.0.0.0:{port}")
     print("Main executor/scheduler will start in parallel")
     print("=" * 60)
