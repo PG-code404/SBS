@@ -127,7 +127,7 @@ def fetch_agile_price_for_slot(schedule_start: str, schedule_end: str):
 def post_status_to_dashboard():
     """Push current executor status to Keep_Alive dashboard."""
     try:
-        port = os.getenv("KEEP_ALIVE_PORT", "5000")
+        port = os.getenv("KEEP_ALIVE_PORT", "8080")
         urls = [
             f"http://localhost:{port}/update_status",
             f"http://127.0.0.1:{port}/update_status",
