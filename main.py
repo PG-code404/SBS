@@ -131,8 +131,7 @@ def post_status_to_dashboard():
         urls = [
             f"http://localhost:{port}/update_status",
             f"http://127.0.0.1:{port}/update_status",
-            f"http://0.0.0.0:{port}/update_status",
-            "https://e3e67aeb-88da-4266-b466-5f77c78760ce-00-2dt4fohwvlnub.worf.replit.dev/update_status"
+            "https://agileoctopw-697014942939.europe-west1.run.app/update_status"
         ]
         headers = {
             "x-api-key": KEEP_ALIVE_API_KEY,
@@ -449,7 +448,7 @@ def process_schedule_row(row, now: datetime):
         "island":
         island,
         "message":
-        f"Charging active for schedule {schedule_id}"
+        f"Charging from grid for schedule {schedule_id}"
     })
     post_status_to_dashboard()
 

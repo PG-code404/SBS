@@ -1,145 +1,163 @@
-refreshStatus();
-
-async function addSchedule(event) {
-    event.preventDefault();
-    const data = {
-        start_time: document.getElementById("start_time").value,
-        end_time: document.getElementById("end_time").value,
-        target_soc: document.getElementById("target_soc").value
-    };
-    console.log("Sending schedule:", data);
-    const res = await fetch("/putSchedule", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data)
-    });
-    const result = await res.json();
-    alert(result.message);
-    loadSchedules();
+// === Toast Notification Helper ===
+function showMessage(msg, type = "info") {
+  const toast = document.createElement("div");
+  toast.className = `toast ${type}`;
+  toast.textContent = msg;
+  document.getElementById("toast-container").appendChild(toast);
+  setTimeout(() => toast.remove(), 3000);
 }
 
+// === Utility ===
+function safeSet(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.innerText = value;
+}
+
+// === Refresh Status ===
+async function refreshStatus() {
+  try {
+    const response = await fetch("/status");
+    const data = await response.json();
+    safeSet("executor_status", data.message || data.executor_status_msg || "Idle");
+    safeSet("next_schedule_time", data.next_schedule_time || "Pending");
+    safeSet("last_scheduler_run", data.last_scheduler_run || "Not yet run");
+    safeSet("active_schedule_id", data.active_schedule_id || "None");
+    if (data.uptime !== undefined) safeSet("uptime", data.uptime.toFixed(0));
+  } catch (err) {
+    console.error("Failed to fetch status:", err);
+  }
+}
+
+// === Load Schedules ===
 async function loadSchedules() {
+  try {
     const res = await fetch("/getPendingSchedules");
     const schedules = await res.json();
 
-    const tbody = document.getElementById("schedule-table-body");
-    tbody.innerHTML = "";
     const statusRes = await fetch("/status");
     const status = await statusRes.json();
     const activeId = status.active_schedule_id;
 
+    const tbody = document.getElementById("schedule-table-body");
+    tbody.innerHTML = "";
 
     schedules.forEach(s => {
-        const tr = document.createElement("tr");
+      const tr = document.createElement("tr");
+      if (s.id === activeId) tr.className = "schedule-active";
 
-        // Determine row class
-        let rowClass = "";
-        if (s.id === activeId) {
-            rowClass = "schedule-active";
-        } else if (s.start_time === status.next_schedule_time) {
-            rowClass = "schedule-upcoming";
-        }
+      tr.innerHTML = `
+        <td>${s.id}</td>
+        <td>${s.start_time}</td>
+        <td>${s.end_time}</td>
+        <td>${s.target_soc}</td>
+        <td>${s.price_p_per_kwh}</td>
+        <td>${s.source}</td>
+        <td><button class="delete-btn" data-id="${s.id}"><i class="fa-regular fa-trash-can"></i></button></td>`;
+      tbody.appendChild(tr);
+    });
+  } catch (err) {
+    console.error("Failed to load schedules:", err);
+  }
+}
 
-        tr.className = rowClass;
-        tr.innerHTML = `
-            <td>${s.id}</td>
-            <td>${s.start_time}</td>
-            <td>${s.end_time}</td>
-            <td>${s.target_soc}</td>
-            <td>${s.price_p_per_kwh}</td>
-            <td>${s.source}</td>
-            <td><button class="delete-btn" data-id="${s.id}" title="Delete">🗑️</button></td>
-        `;
-        tbody.appendChild(tr);
+// === Add Manual Schedule ===
+async function addSchedule(event) {
+  event.preventDefault();
+  const data = {
+    start_time: document.getElementById("start_time").value,
+    end_time: document.getElementById("end_time").value,
+    target_soc: document.getElementById("target_soc").value
+  };
+  try {
+    const res = await fetch("/putSchedule", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+    const result = await res.json();
+    showMessage(result.message, "success");
+    loadSchedules();
+    // ✅ Clear input fields after adding
+    document.getElementById("start_time").value = "";
+    document.getElementById("end_time").value = "";
+    document.getElementById("target_soc").value = "80"; // optional: reset to default
+
+  } catch (err) {
+    showMessage("Error adding schedule.", "error");
+  }
+}
+
+function showConfirm(message) {
+    return new Promise((resolve) => {
+        const modal = document.getElementById("confirm-modal");
+        const msg = document.getElementById("confirm-message");
+        const yesBtn = document.getElementById("confirm-yes");
+        const noBtn = document.getElementById("confirm-no");
+
+        msg.textContent = message;
+        modal.style.display = "flex";
+
+        yesBtn.onclick = () => { modal.style.display = "none"; resolve(true); };
+        noBtn.onclick = () => { modal.style.display = "none"; resolve(false); };
     });
 }
 
-function safeSet(id, value) {
-    const el = document.getElementById(id);
-    if (el) el.innerText = value;
-}
+// Usage in your delete handler
+document.addEventListener("click", async (event) => {
+    const btn = event.target.closest(".delete-btn");
+    if (!btn) return;
+    const id = btn.dataset.id;
+    if (!id) return;
 
-async function refreshStatus() {
-    try {
-        const response = await fetch("/status");
-        const data = await response.json();
+    const confirmed = await showConfirm(`Delete schedule ${id}?`);
+    if (!confirmed) return;
 
-        safeSet("executor_status", data.message || data.executor_status_msg || "Idle");
-        safeSet("next_schedule_time", data.next_schedule_time || "Pending");
-        safeSet("last_scheduler_run", data.last_scheduler_run || "Not yet run");
-        safeSet("active_schedule_id", data.active_schedule_id || "None");
-        safeSet("current_price", data.current_price ?? "-");
-        safeSet("soc", data.soc ?? "-");
-        safeSet("solar_power", data.solar_power ?? "-");
-        safeSet("island", data.island ?? "-");
-        if (data.uptime !== undefined) safeSet("uptime", data.uptime.toFixed(0));document.getElementById("executor_status").innerText = data.message || data.executor_status_msg || "Idle";
-
-    } catch (err) {
-        console.error("Failed to fetch status:", err);
+    // Proceed to delete schedule
+    const res = await fetch(`/delSchedule/${id}`, { method: "DELETE" });
+    const result = await res.json();
+    if (result.status === "ok") {
+        showMessage(result.message, "success");
+        loadSchedules();
+    } else {
+        showMessage(`Failed to delete: ${result.message}`, "error");
     }
-}
-
-
-// Load schedules on page load
-document.addEventListener("DOMContentLoaded", () => {
-    loadSchedules();
-    setInterval(loadSchedules, 1200000); // refresh every 2m
-
-    refreshStatus(); 
-    setInterval(refreshStatus, 5000); // Refresh every 5 seconds
 });
-
+/*
+// === Delete Schedule ===
 document.addEventListener("click", async (event) => {
   const btn = event.target.closest(".delete-btn");
   if (!btn) return;
-
-  const scheduleId = btn.dataset.id;
-  if (!scheduleId) return;
-
-  if (!confirm(`Are you sure you want to delete schedule ${scheduleId}?`)) return;
-
+  const id = btn.dataset.id;
+  if (!confirm(`Delete schedule ${id}?`)) return;
   try {
-    const res = await fetch(`/delSchedule/${scheduleId}`, { method: "DELETE" });
+    const res = await fetch(`/delSchedule/${id}`, { method: "DELETE" });
     const result = await res.json();
-    
     if (result.status === "ok") {
-      alert(result.message);
-      loadSchedules(); // refresh table after deletion
+      showMessage(result.message, "success");
+      loadSchedules();
     } else {
-      alert(`Failed to delete: ${result.message}`);
+      showMessage(result.message, "error");
     }
-  } catch (err) {
-    console.error("Error deleting schedule:", err);
+  } catch {
+    showMessage("Failed to delete schedule.", "error");
+  }
+});
+*/
+
+// === Logout ===
+document.getElementById("logout-btn")?.addEventListener("click", async () => {
+  try {
+    const res = await fetch("/logout", { method: "POST" });
+    if (res.ok) window.location.href = "/";
+  } catch {
+    showMessage("Logout failed", "error");
   }
 });
 
-async function refreshHeaderStatus() {
-    try {
-        const res = await fetch("/status");
-        const data = await res.json();
-        document.getElementById("active-schedule-label").innerText =
-            "Active Schedule: " + (data.active_schedule_id || "None");
-    } catch (err) {
-        console.error("Failed to update header status:", err);
-    }
-}
-
-// Call it on page load and optionally every 5-10 seconds
+// === Auto-refresh loops ===
 document.addEventListener("DOMContentLoaded", () => {
-    refreshHeaderStatus();
-    setInterval(refreshHeaderStatus, 5000);
-});
-
-document.getElementById("logout-btn")?.addEventListener("click", async function() {
-    try {
-        const res = await fetch("/logout", { method: "POST" });
-        if (res.ok) {
-            window.location.href = "/"; // redirect to login page
-        } else {
-            alert("Logout failed.");
-        }
-    } catch (err) {
-        console.error("Logout error:", err);
-        alert("Logout error, see console.");
-    }
+  loadSchedules();
+  refreshStatus();
+  setInterval(refreshStatus, 5000);
+  setInterval(loadSchedules, 120000);
 });

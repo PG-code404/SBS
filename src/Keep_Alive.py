@@ -323,10 +323,12 @@ def delete_schedule(schedule_id: int):
 # Server runner
 # -----------------------------
 def _run_server():
-    serve(app, host="0.0.0.0", port=int(os.getenv("KEEP_ALIVE_PORT", "8080")))
+    from waitress import serve
 
+    PORT = int(os.environ.get("PORT", 8080))  # Cloud Run sets $PORT
+    serve(app, host="0.0.0.0", port=PORT)
 
 def keep_alive():
     threading.Thread(target=_run_server, daemon=True).start()
-    threading.Thread(target=scheduler_loop, daemon=True).start()
+    #threading.Thread(target=scheduler_loop, daemon=True).start()
     logger.info("Keep-alive server started.")
