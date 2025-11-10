@@ -252,6 +252,7 @@ def process_schedule_row(row, now: datetime):
     end_iso = row["end_time"]
     OCTO_TOKEN = None
     SAVING_SESSIONS = []
+    current_price = None  # defined early to avoid UnboundLocalError
 
     try:
         OCTO_TOKEN = get_kraken_token()
@@ -281,9 +282,8 @@ def process_schedule_row(row, now: datetime):
     if not status:
         logging.warning("Could not read battery status; skipping.")
         EXECUTOR_STATUS.update({
-            "message":
-            f"Schedule {schedule_id} skipped — battery status unavailable",
-            "active_schedule_id":None
+            "message": f"Schedule {schedule_id} skipped — battery status unavailable",
+            "active_schedule_id": None
         })
         active_schedule_id = None
         post_status_to_dashboard()
@@ -291,11 +291,12 @@ def process_schedule_row(row, now: datetime):
 
     soc = status.get('percentage_charged', 0.0)
     island = status.get('island_status', 'unknown') or 'unknown'
+    logging.info(island)
     solar_power = status.get('solar_power', 0)
     usr_grid_charging_enabled_settings = status.get('grid_charging', False)
 
     # Skip if off-grid and no retries left
-    if island.lower().startswith('off_grid') and not should_retry(schedule_id):
+    if island.lower().startswith('off_grid'):
         logging.info(f"Schedule {schedule_id} cancelled — off-grid.")
 
         EXECUTOR_STATUS.update({
@@ -311,14 +312,14 @@ def process_schedule_row(row, now: datetime):
                      'Powerwall off-grid', soc, solar_power, island)
         mark_as_executed(schedule_id, "cancelled")
         return
-    
-    # Skip if User has disabled grid charging
-    if not usr_grid_charging_enabled_settings and not should_retry(schedule_id):
+
+    # Skip if User has disabled grid charging and no retries left
+    if not usr_grid_charging_enabled_settings:
         logging.info(f"Schedule {schedule_id} cancelled — grid charging disabled.")
 
         EXECUTOR_STATUS.update({
             "message": f"Schedule {schedule_id} cancelled — grid charging disabled",
-            "active_schedule_id": schedule_id,
+            "active_schedule_id": None,
             "soc": soc,
             "solar_power": solar_power,
             "island": island,
@@ -330,12 +331,13 @@ def process_schedule_row(row, now: datetime):
         mark_as_executed(schedule_id, "cancelled")
         active_schedule_id = None
         return
-    
+
     # --- Octopus Saving Session check ---
+    # Skip charging as User is participating in Saving sessions
     try:
         if OCTO_TOKEN and SAVING_SESSIONS:
             if is_in_saving_session(start_dt, end_dt, SAVING_SESSIONS):
-                print(
+                logging.info(
                     f"❌ Schedule {schedule_id} cancelled — Octopus Saving Session"
                 )
                 mark_as_executed(schedule_id, "cancelled")
@@ -348,17 +350,43 @@ def process_schedule_row(row, now: datetime):
             f"⚠️ Saving Session check failed — continuing schedule: {e}")
 
     # --- Manual override logic ---
-    manual_override = row["manual_override"] if "manual_override" in row.keys(
-    ) else 0
-    target_soc = row["target_soc"] if "target_soc" in row.keys(
-    ) else 98  # default 98%
+    manual_override = row["manual_override"]
+    target_soc = row["target_soc"]
 
-    if manual_override and not usr_grid_charging_enabled_settings:
+    if manual_override:
+        # If grid charging disabled: either retry later or cancel if no retries left
+        if not usr_grid_charging_enabled_settings:
+            if not should_retry(schedule_id):
+                logging.info(f"Schedule {schedule_id} cancelled — grid charging disabled (manual override, no retries).")
+                EXECUTOR_STATUS.update({
+                    "message": f"Schedule {schedule_id} cancelled — grid charging disabled",
+                    "active_schedule_id": None,
+                    "soc": soc,
+                    "solar_power": solar_power,
+                    "island": island,
+                })
+                post_status_to_dashboard()
+                add_decision(schedule_id, start_iso, end_iso, 'cancelled',
+                             'Grid Charging disabled (manual override)', soc, solar_power, island)
+                mark_as_executed(schedule_id, "cancelled")
+                return
+            else:
+                # will retry later; don't mark executed
+                logging.info(f"Manual override for schedule {schedule_id} deferred — grid charging disabled (will retry).")
+                EXECUTOR_STATUS.update({
+                    "message": f"Manual override deferred — grid charging disabled",
+                    "active_schedule_id": None,
+                    "soc": soc,
+                    "solar_power": solar_power,
+                    "island": island,
+                })
+                post_status_to_dashboard()
+                return
+
+        # Grid charging enabled -> perform manual override
         EXECUTOR_STATUS.update({
-            "active_schedule_id":
-            schedule_id,
-            "message":
-            f"Manual override active — charging to {target_soc}%"
+            "active_schedule_id": schedule_id,
+            "message": f"Manual override active — charging to {target_soc}%"
         })
         post_status_to_dashboard()
 
@@ -368,26 +396,32 @@ def process_schedule_row(row, now: datetime):
                 f"⚡ Manual override — charging schedule {schedule_id} to {target_soc}%"
             )
 
-            # Sleep until end, updating dashboard every minute
-            duration = (end_dt - now).total_seconds()
+            # Recompute duration with fresh time
+            now_local = datetime.now(LOCAL_TZ)
+            duration = (end_dt - now_local).total_seconds()
+            if duration <= 0:
+                logging.warning(f"Manual override {schedule_id} expired before execution.")
+                mark_as_executed(schedule_id, "expired")
+                EXECUTOR_STATUS.update({"message": f"Manual override {schedule_id} expired", "active_schedule_id": None})
+                post_status_to_dashboard()
+                return
+
             elapsed = 0
             heartbeat_interval = 60  # seconds
             while elapsed < duration:
-                time.sleep(min(heartbeat_interval, duration - elapsed))
-                elapsed += heartbeat_interval
+                sleep_chunk = min(heartbeat_interval, duration - elapsed)
+                time.sleep(sleep_chunk)
+                elapsed += sleep_chunk
+
                 status = get_battery_status()
                 soc = status.get('percentage_charged', soc) if status else soc
                 EXECUTOR_STATUS.update({
-                    "soc":
-                    soc,
-                    "message":
-                    f"Manual override — charging to {target_soc}%, current SOC: {soc}%"
+                    "soc": soc,
+                    "message": f"Manual override — charging to {target_soc}%, current SOC: {soc}%"
                 })
                 post_status_to_dashboard()
                 if soc >= target_soc:
-                    logging.info(
-                        f"Target SOC {target_soc}% reached for schedule {schedule_id}"
-                    )
+                    logging.info(f"Target SOC {target_soc}% reached for schedule {schedule_id}")
                     break
 
             # Stop charging
@@ -397,31 +431,28 @@ def process_schedule_row(row, now: datetime):
                          "Manual override successful", soc, solar_power,
                          island)
             EXECUTOR_STATUS.update({
-                "message":
-                f"Manual override schedule {schedule_id} completed successfully",
-                "active_schedule_id": schedule_id
+                "message": f"Manual override schedule {schedule_id} completed successfully",
+                "active_schedule_id": None
             })
             post_status_to_dashboard()
-            logging.info(
-                f"✅ Manual override schedule {schedule_id} ended, SOC={soc}%")
+            logging.info(f"✅ Manual override schedule {schedule_id} ended, SOC={soc}%")
 
         except KeyboardInterrupt:
             safe_shutdown()
         except Exception as e:
-            logging.error(
-                f"❌ Error during manual override schedule {schedule_id}: {e}")
+            logging.error(f"❌ Error during manual override schedule {schedule_id}: {e}")
             set_charge(reserve=BATTERY_RESERVE_END, grid_charging=False)
             mark_as_executed(schedule_id, "aborted")
             add_decision(schedule_id, start_iso, end_iso, "aborted",
                          "Manual scheduling System_Error", soc, solar_power,
                          island)
+            EXECUTOR_STATUS.update({"message": f"Manual override {schedule_id} aborted", "active_schedule_id": None})
+            post_status_to_dashboard()
         finally:
             active_schedule_id = None
             EXECUTOR_STATUS.update({
-                "active_schedule_id":
-                schedule_id,
-                "message":
-                f"Manual override schedule {schedule_id} ended"
+                "active_schedule_id": None,
+                "message": f"Manual override schedule {schedule_id} ended"
             })
             post_status_to_dashboard()
         return  # exit after manual override handling
@@ -433,7 +464,7 @@ def process_schedule_row(row, now: datetime):
                      'peak_window', soc, solar_power, island)
         mark_as_executed(schedule_id, "cancelled")
         EXECUTOR_STATUS.update(
-            {"message": f"Schedule {schedule_id} cancelled — peak window"})
+            {"message": f"Schedule {schedule_id} cancelled — peak window", "active_schedule_id": None})
         post_status_to_dashboard()
         return
 
@@ -443,7 +474,7 @@ def process_schedule_row(row, now: datetime):
                      f"soc_high_{soc}", soc, solar_power, island)
         mark_as_executed(schedule_id, "cancelled")
         EXECUTOR_STATUS.update(
-            {"message": f"Schedule {schedule_id} cancelled — SOC high {soc}%"})
+            {"message": f"Schedule {schedule_id} cancelled — SOC high {soc}%", "active_schedule_id": None})
         post_status_to_dashboard()
         return
 
@@ -453,7 +484,7 @@ def process_schedule_row(row, now: datetime):
             f"⏰ Schedule {schedule_id} has expired (End: {end_dt}, Now: {now})"
         )
         mark_as_executed(schedule_id, "expired")
-        EXECUTOR_STATUS.update({"message": f"Schedule {schedule_id} expired","active_schedule_id": None})
+        EXECUTOR_STATUS.update({"message": f"Schedule {schedule_id} expired", "active_schedule_id": None})
         active_schedule_id = None
         post_status_to_dashboard()
         return
@@ -465,24 +496,23 @@ def process_schedule_row(row, now: datetime):
             f"🕒 Waiting for schedule {schedule_id} (starts in {delta/60:.1f} min)"
         )
         EXECUTOR_STATUS.update(
-            {"message": f"Waiting to start schedule {schedule_id}",
-                "active_schedule_id":None})
+            {"message": f"Waiting to start schedule {schedule_id}", "active_schedule_id": None})
         post_status_to_dashboard()
         time.sleep(min(delta, 60))  # heartbeat every 1 min
         return
 
-    # Active schedule
+    # Active schedule (autonomous)
     active_schedule_id = schedule_id
     EXECUTOR_STATUS["active_schedule_id"] = schedule_id
     stored_price = get_stored_price(schedule_id)
     current_price = fetch_agile_price_for_slot(start_iso,
                                                end_iso) or stored_price
     EXECUTOR_STATUS.update({
-        "current_price":current_price,
-        "soc":soc,
-        "solar_power":solar_power,
-        "island":island,
-        "message":f"Charging from grid for schedule {schedule_id}"
+        "current_price": current_price,
+        "soc": soc,
+        "solar_power": solar_power,
+        "island": island,
+        "message": f"Charging from grid for schedule {schedule_id}"
     })
     post_status_to_dashboard()
 
@@ -490,7 +520,7 @@ def process_schedule_row(row, now: datetime):
         f"💰 Current Agile price: {current_price}p/kWh | Stored: {stored_price}p/kWh"
     )
 
-    if current_price > MAX_AGILE_PRICE_PPK:
+    if current_price is not None and current_price > MAX_AGILE_PRICE_PPK:
         add_decision(
             schedule_id, start_iso, end_iso, 'cancelled',
             f"price_high_{current_price}p>limit_{MAX_AGILE_PRICE_PPK}p", soc,
@@ -499,7 +529,7 @@ def process_schedule_row(row, now: datetime):
         logging.warning(
             f"Skipping charge — price too high ({current_price}p/kWh).")
         EXECUTOR_STATUS.update(
-            {"message": f"Schedule {schedule_id} cancelled — price too high"})
+            {"message": f"Schedule {schedule_id} cancelled — price too high", "active_schedule_id": None})
         post_status_to_dashboard()
         active_schedule_id = None
         return
@@ -517,8 +547,7 @@ def process_schedule_row(row, now: datetime):
                          "Forecasted enough Solar for schedule", soc,
                          solar_power, island)
             EXECUTOR_STATUS.update({
-                "message":
-                f"Schedule {schedule_id} cancelled — Forecasted enough Solar"
+                "message": f"Schedule {schedule_id} cancelled — Forecasted enough Solar", "active_schedule_id": None
             })
             mark_as_executed(schedule_id, "cancelled")
             post_status_to_dashboard()
@@ -539,7 +568,17 @@ def process_schedule_row(row, now: datetime):
         logging.info(
             f"⚡ Charging started for schedule {schedule_id}, reserve={reserve_value}"
         )
-        duration = (end_dt - now).total_seconds()
+        # recompute duration against fresh time
+        now_local = datetime.now(LOCAL_TZ)
+        duration = (end_dt - now_local).total_seconds()
+        if duration <= 0:
+            logging.warning(f"Schedule {schedule_id} expired before action.")
+            mark_as_executed(schedule_id, "expired")
+            EXECUTOR_STATUS.update({"message": f"Schedule {schedule_id} expired", "active_schedule_id": None})
+            post_status_to_dashboard()
+            active_schedule_id = None
+            return
+
         logging.info(
             f"Sleeping {duration/60:.1f} min until end of schedule {schedule_id}"
         )
@@ -560,7 +599,7 @@ def process_schedule_row(row, now: datetime):
         add_decision(schedule_id, start_iso, end_iso, 'aborted',
                      'System_Error', soc, solar_power, island)
     finally:
-        active_schedule_id = None
+        
         EXECUTOR_STATUS.update({
             "active_schedule_id": schedule_id,
             "message": f"Schedule {schedule_id} ended"
@@ -592,7 +631,7 @@ def maybe_run_scheduler(last_run_time, runs_per_day=1):
 # Main Loop
 # -----------------------------
 def main():
-    print(f"[Executor Init in main.py] event id={id(executor_wake_event)}")
+    logging.debug(f"[Executor Init in main.py] event id={id(executor_wake_event)}")
 
     signal.signal(signal.SIGINT, safe_shutdown)
     signal.signal(signal.SIGTERM, safe_shutdown)

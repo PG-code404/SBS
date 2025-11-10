@@ -204,13 +204,12 @@ def add_schedule():
         # Call your DB helper to add manual schedule
         add_manual_charge_schedule(start_time, end_time, target_soc)
         #scheduler_refresh_event.set()
-        print(f"[KeepAlive] event id={id(executor_wake_event)} setting it now")
         executor_wake_event.set()
-        print(f"[{__name__}] Event object ID: {id(executor_wake_event)}  (Set? {executor_wake_event.is_set()})  Thread: {threading.current_thread().name}")
+        #logging.info(f"[{__name__}] Event object ID: {id(executor_wake_event)}  (Set? {executor_wake_event.is_set()})  Thread: {threading.current_thread().name}")
         return jsonify({"message": "Manual schedule added successfully!"})
     except Exception as e:
-        print("Error adding schedule:", e)
-        print(f"{start_time}, {end_time}, {target_soc}")
+        logging.info("Error adding schedule:", e)
+        logging.info(f"{start_time}, {end_time}, {target_soc}")
         return jsonify({"message": f"Failed to add schedule: {e}"}), 500
 
 
@@ -222,23 +221,15 @@ def pending_schedules():
     )  # make sure this sets row_factory = sqlite3.Row
 
     schedules = [{
-        "id":
-        r["id"],  # type: ignore[index]
-        "start_time":
-        to_local(r["start_time"]),  # type: ignore[index]
-        "end_time":
-        to_local(r["end_time"]),  # type: ignore[index]
-        "target_soc":
-        r["target_soc"] if r["target_soc"] is not None else '-',  # type: ignore[index]
-        "price_p_per_kwh":
-        r["price_p_per_kwh"] if r["price_p_per_kwh"] is not None else '-',  # type: ignore[index]
-        "manual_override":
-        bool(r["manual_override"])  # type: ignore[index]
+        "id":r["id"],  # type: ignore[index]
+        "start_time":to_local(r["start_time"]),  # type: ignore[index]
+        "end_time":to_local(r["end_time"]),  # type: ignore[index]
+        "target_soc":r["target_soc"] if r["target_soc"] is not None else '-',  # type: ignore[index]
+        "price_p_per_kwh":r["price_p_per_kwh"] if r["price_p_per_kwh"] is not None else '-',  # type: ignore[index]
+        "manual_override":bool(r["manual_override"])  # type: ignore[index] 
         if r["manual_override"] is not None else False,  # type: ignore[index]
-        "source":
-        r["source"] if r["source"] else "scheduler",  # type: ignore[index]
-        "mode":
-        r["mode"] if r["mode"] else "autonomous",  # type: ignore[index]
+        "source":r["source"] if r["source"] else "scheduler",  # type: ignore[index]
+        "mode":r["mode"] if r["mode"] else "autonomous",  # type: ignore[index]
     } for r in rows]
     return jsonify(schedules)
 
@@ -257,22 +248,14 @@ def get_status():
     return jsonify({
         "executor_status_msg":
         main.EXECUTOR_STATUS.get("message"),
-        "last_scheduler_run":
-        datetime.fromisoformat(main.EXECUTOR_STATUS["last_scheduler_run"]).
-        strftime("%Y-%m-%d %H:%M:%S")
+        "last_scheduler_run":datetime.fromisoformat(main.EXECUTOR_STATUS["last_scheduler_run"]).strftime("%Y-%m-%d %H:%M:%S")
         if main.EXECUTOR_STATUS.get("last_scheduler_run") else "Not yet run",
-        "next_schedule_time":
-        main.EXECUTOR_STATUS.get("next_schedule_time"),
-        "active_schedule_id":
-        main.EXECUTOR_STATUS.get("active_schedule_id"),
-        "current_price":
-        main.EXECUTOR_STATUS.get("current_price"),
-        "soc":
-        main.EXECUTOR_STATUS.get("soc"),
-        "solar_power":
-        main.EXECUTOR_STATUS.get("solar_power"),
-        "island":
-        main.EXECUTOR_STATUS.get("island"),
+        "next_schedule_time":main.EXECUTOR_STATUS.get("next_schedule_time"),
+        "active_schedule_id":main.EXECUTOR_STATUS.get("active_schedule_id"),
+        "current_price":main.EXECUTOR_STATUS.get("current_price"),
+        "soc":main.EXECUTOR_STATUS.get("soc"),
+        "solar_power":main.EXECUTOR_STATUS.get("solar_power"),
+        "island":main.EXECUTOR_STATUS.get("island"),
         "uptime": (datetime.now() - PROCESS_START_TIME).total_seconds(),
     })
 
