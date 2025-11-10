@@ -161,3 +161,5 @@ document.addEventListener("DOMContentLoaded", () => {
   setInterval(refreshStatus, 5000);
   setInterval(loadSchedules, 120000);
 });
+
+
