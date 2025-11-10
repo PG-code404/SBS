@@ -1,81 +1,82 @@
 body {
-  font-family: 'Segoe UI', Arial, sans-serif;
-  background: #f6f8fa;
-  color: #222;
-  margin: 0;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #f6f8fa;
+    color: #222;
+    margin: 0;
 }
 
 #dashboard-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  padding: 10px 20px;
-  background: #0077cc;
-  color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    padding: 10px 20px;
+    background: #0077cc;
+    color: white;
 }
 
 #dashboard-header h1 {
-  margin: 0;
-  font-size: 1.2rem;
+    margin: 0;
+    font-size: 1.2rem;
 }
 
 #header-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
 }
 
 #header-right button {
-  background: white;
-  color: #0077cc;
-  border: none;
-  padding: 6px 10px;
-  border-radius: 5px;
-  cursor: pointer;
+    background: white;
+    color: #0077cc;
+    border: none;
+    padding: 6px 10px;
+    border-radius: 5px;
+    cursor: pointer;
 }
 
 main {
-  padding: 15px;
-  max-width: 900px;
-  margin: auto;
+    padding: 15px;
+    max-width: 900px;
+    margin: auto;
+    padding-bottom: 100px;
 }
 
-/* Responsive grid for info cards */
+/* Info Cards */
 .info-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); /* responsive columns */
-  gap: 15px; /* spacing between cards */
-  margin: 20px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+    margin: 20px;
 }
 
 .card {
-  background: white;
-  border-radius: 12px;
-  padding: 15px;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between; /* value top, label bottom */
-  align-items: center;
-  min-height: 10px;
+    background: white;
+    border-radius: 12px;
+    padding: 15px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    min-height: 10px;
 }
 
 .value {
-  font-size: 1.4em;
-  font-weight: 600;
-  margin-bottom: 8px;
+    font-size: 1em;
+    font-weight: 600;
+    margin-bottom: 8px;
+    align-content: center;
 }
 
 .label {
-  color: #777;
-  font-size: 0.85em;
-  margin-top: auto;
-  text-align: center;
+    color: #777;
+    font-size: 0.85em;
+    margin-top: auto;
+    text-align: center;
 }
 
-/* Make long text cards like Executor Status look cleaner */
-.card#executor-card {
+#executor-card {
     flex: 1 1 50%;
     max-width: 850px;
     min-height: 50px;
@@ -91,132 +92,254 @@ main {
     line-height: 1.3;
 }
 
-
 /* Forms */
 form {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 10px;
-  margin-top: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 10px;
 }
 
-input, button {
-  padding: 6px 10px;
-  border-radius: 6px;
-  border: 1px solid #ccc;
+input,
+button {
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
 }
 
 button {
-  cursor: pointer;
-  background: #0077cc;
-  color: white;
-  border: none;
-  transition: background 0.2s ease;
+    cursor: pointer;
+    background: #0077cc;
+    color: white;
+    border: none;
+    transition: background 0.2s ease;
 }
 
 button:hover {
-  background: #005fa3;
+    background: #005fa3;
 }
 
 /* Table */
 .table-container {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 10px;
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
 }
 
-th, td {
-  border: 1px solid #ddd;
-  padding: 8px;
-  text-align: center;
+th,
+td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: center;
+}
+table td:nth-child(6) {
+  text-transform: capitalize;
 }
 
 th {
-  background: #0077cc;
-  color: white;
+    background: #0077cc;
+    color: white;
 }
 
 /* Toast Notifications */
 #toast-container {
-  position: fixed;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 9999;
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999;
 }
 
 .toast {
-  background: #333;
-  color: #fff;
-  padding: 10px 16px;
-  border-radius: 6px;
-  margin-top: 5px;
-  animation: fadeInOut 3s ease forwards;
+    background: #333;
+    color: #fff;
+    padding: 10px 16px;
+    border-radius: 6px;
+    margin-top: 5px;
+    animation: fadeInOut 3s ease forwards;
 }
 
-.toast.success { background: #28a745; }
-.toast.error { background: #dc3545; }
+.toast.success {
+    background: #28a745;
+}
+
+.toast.error {
+    background: #dc3545;
+}
 
 @keyframes fadeInOut {
-  0% { opacity: 0; transform: translateY(20px); }
-  10%, 90% { opacity: 0.95; transform: translateY(0); }
-  100% { opacity: 0; transform: translateY(20px); }
+    0% {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    10%,
+    90% {
+        opacity: 0.95;
+        transform: translateY(0);
+    }
+
+    100% {
+        opacity: 0;
+        transform: translateY(20px);
+    }
 }
 
-/* Mobile tweaks */
-@media (max-width: 600px) {
-  #header-right span { font-size: 0.8rem; }
-  th, td { font-size: 0.85em; }
-  button { padding: 5px 8px; font-size: 0.9em; }
-}
-
+/* Modal */
 .modal {
-  display: none; /* hidden by default */
-  position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  background: rgba(0,0,0,0.5);
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
 }
 
 .modal-content {
-  background: white;
-  padding: 20px;
-  border-radius: 8px;
-  text-align: center;
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    text-align: center;
 }
 
 .delete-btn {
-  background: transparent;   /* no background */
-  border: none;              /* no border */
-  color: #d9534f;            /* red text/icon */
-  cursor: pointer;           
-  font-size: 1rem;
-  padding: 4px 6px;
-  transition: color 0.2s, transform 0.2s, background 0.2s;
-  outline: none;             /* remove focus outline */
+    background: transparent;
+    border: none;
+    color: #d9534f;
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 4px 6px;
+    transition: color 0.2s, transform 0.2s;
+    outline: none;
 }
 
 .delete-btn:hover {
-  color: #b52b27;            /* dark red on hover */
-  transform: scale(1.2);
-  background: transparent;   /* explicitly override any hover background */
+    color: #b52b27;
+    background: transparent;
+    transform: scale(1.5);
 }
 
-.delete-btn:focus {
-  outline: none;             /* remove blue focus ring */
-  background: transparent;   
+/* --- Manual Schedule Form --- */
+#manualForm .form-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: flex-end;
+    justify-content: flex-start;
+    /* ensures left alignment */
+    margin-top: 10px;
 }
 
-.delete-btn:active {
-  background: transparent;   /* remove active/pressed background */
+#manualForm .form-group {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 10px;
+    min-width: 150px;
+    max-width: 220px;
 }
 
+#manualForm .form-group label {
+    font-weight: 500;
+    margin-bottom: 4px;
+    text-align: left;
+}
+
+#manualForm .form-group input {
+    padding: 6px 8px;
+    font-size: 0.9rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+#manualForm .button-group {
+    display: flex;
+    align-items: flex-start;
+    flex: 0 0 auto;
+}
+
+/* Mobile Layout */
+@media (max-width: 700px) {
+    #manualForm .form-row {
+        flex-direction: column;
+        gap: 10px;
+        align-items: flex-start;
+        justify-content: flex-start;
+
+    }
+
+    #manualForm .form-group {
+        width: 100%;
+        max-width: none;
+    }
+
+    #manualForm .button-group {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    #manualForm button[type="submit"] {
+        align-self: flex-start;
+        width: auto;
+    }
+}
+
+/* Responsive layout for small screens */
+@media (max-width: 768px) {
+    #header {
+        flex-direction: row;
+        /* keep left and right on same row */
+        flex-wrap: wrap;
+    }
+
+    #header-left {
+        flex: 1;
+        /* left takes available space */
+    }
+
+    #header-right {
+        flex-direction: column;
+        /* stack logout above active schedule */
+        align-items: flex-end;
+        /* align right */
+        gap: 5px;
+    }
+
+
+    #active-schedule-label {
+        white-space: nowrap;
+    }
+
+    th,
+    td {
+        font-size: 0.85em;
+    }
+
+    button {
+        padding: 5px 8px;
+        font-size: 0.9em;
+    }
+    .info-grid {
+    
+    justify-items: center;      /* center cards in grid */
+  }
+
+  .card {
+    align-items: center;  /* centers content inside card */
+    text-align: center;   /* centers text */
+    width: 90%;           /* optional: give cards some breathing space */
+  }
+
+  .value, .label {
+    text-align: center;
+  }
+  
+}

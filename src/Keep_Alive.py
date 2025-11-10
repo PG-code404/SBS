@@ -11,7 +11,8 @@ from authlib.integrations.flask_client import OAuth
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from waitress import serve
 
-from src.ScheduleChargeSlots import add_manual_charge_schedule, scheduler_loop
+from src.ScheduleChargeSlots import add_manual_charge_schedule, scheduler_loop, scheduler_refresh_event
+from src.events import executor_wake_event
 from src.db import fetch_pending_schedules, remove_schedule
 from src.timezone_utils import to_local
 import main
@@ -92,11 +93,12 @@ def allow_internal_or_logged_in(func):
         if current_user and getattr(current_user, "is_authenticated", False):
             return func(*args, **kwargs)
         remote = request.remote_addr or ""
-        if remote in ("127.0.0.1", "::1", "localhost"):
+        if remote in ("127.0.0.1", "::1", "localhost","https://agileoctopw-697014942939.europe-west1.run.app"):
             return func(*args, **kwargs)
         key = request.headers.get("x-api-key") or request.args.get("api_key")
         if key and KEEP_ALIVE_API_KEY and key == KEEP_ALIVE_API_KEY:
             return func(*args, **kwargs)
+        print(f"[Auth] ❌ Unauthorized request from {remote} with key={key}")
         return jsonify({"error": "Unauthorized"}), 401
 
     return wrapper
@@ -188,9 +190,7 @@ def dashboard():
 @login_required
 def add_schedule():
     """Add a manual schedule entry into the database."""
-    from src.db import add_manual_override
-    from src.ScheduleChargeSlots import scheduler_refresh_event
-
+    #from src.db import add_manual_override
     data = request.get_json()
     start_time = data.get("start_time")
     end_time = data.get("end_time")
@@ -203,8 +203,10 @@ def add_schedule():
 
         # Call your DB helper to add manual schedule
         add_manual_charge_schedule(start_time, end_time, target_soc)
-        scheduler_refresh_event.set()
-
+        #scheduler_refresh_event.set()
+        print(f"[KeepAlive] event id={id(executor_wake_event)} setting it now")
+        executor_wake_event.set()
+        print(f"[{__name__}] Event object ID: {id(executor_wake_event)}  (Set? {executor_wake_event.is_set()})  Thread: {threading.current_thread().name}")
         return jsonify({"message": "Manual schedule added successfully!"})
     except Exception as e:
         print("Error adding schedule:", e)
@@ -309,7 +311,8 @@ def delete_schedule(schedule_id: int):
         # Call your DB function to delete schedule
         remove_schedule(schedule_id)
         logging.info(f"Schedule {schedule_id} deleted.")
-
+        scheduler_refresh_event.set()
+        executor_wake_event.set()
         return jsonify({
             "status": "ok",
             "message": f"Schedule {schedule_id} is deleted"

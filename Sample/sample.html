@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Manual Schedule Form</title>
   <style>
     body {
@@ -21,7 +21,7 @@
       border-radius: 8px;
       max-width: 800px;
       width: 100%;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
     }
 
     h2 {
@@ -38,13 +38,13 @@
       gap: 12px;
       flex-wrap: wrap;
       align-items: flex-end;
-      justify-content: center;
+      justify-content: center; /* desktop: center */
     }
 
     .form-group {
       display: flex;
       flex-direction: column;
-      flex: 1 1 1px;
+      flex: 1 1 10px;
       min-width: 150px;
       max-width: 220px;
     }
@@ -52,7 +52,7 @@
     .button-group {
       flex: 0 0 auto;
       display: flex;
-      align-items: flex-end;
+      align-items: flex-start;
     }
 
     label {
@@ -84,68 +84,61 @@
       background-color: #025aa5;
     }
 
-    /* Mobile layout */
+    /* --- Mobile layout --- */
     @media (max-width: 600px) {
       .form-row {
         flex-direction: column;
         gap: 10px;
-        align-items: stretch;
+        align-items: flex-start;
+        justify-content: flex-start;
       }
 
       .form-group {
         width: 100%;
+        max-width: none;
       }
 
-      /* Button smaller and centered instead of full width */
       .button-group {
-        align-self: center;
+        width: 100%;
+        justify-content: flex-start; /* ✅ force button to left */
       }
 
       button[type="submit"] {
         width: auto;
-        padding: 8px 20px;
+        align-self: flex-start; /* ✅ ensure button aligns left */
       }
     }
   </style>
 </head>
 <body>
+  <section>
+    <h2>Add Manual Schedule</h2>
+    <form id="manualForm" onsubmit="addSchedule(event)">
+      <div class="form-row">
+        <div class="form-group">
+          <label for="start_time">Start:</label>
+          <input type="datetime-local" id="start_time" required />
+        </div>
 
-<section>
-  <h2>Add Manual Schedule</h2>
-  <form id="manualForm" onsubmit="addSchedule(event)">
-    <div class="form-row">
-      <div class="form-group">
-        <label for="start_time">Start:</label>
-        <input type="datetime-local" id="start_time" required>
+        <div class="form-group">
+          <label for="end_time">End:</label>
+          <input type="datetime-local" id="end_time" required />
+        </div>
+
+        <div class="form-group">
+          <label for="target_soc">Target SOC:</label>
+          <input type="number" id="target_soc" value="80" min="0" max="100" />
+        </div>
+
+        <div class="form-group button-group">
+          <button type="submit">Add</button>
+        </div>
       </div>
+    </form>
+  </section>
 
-      <div class="form-group">
-        <label for="end_time">End:</label>
-        <input type="datetime-local" id="end_time" required>
-      </div>
-
-      <div class="form-group">
-        <label for="target_soc">Target SOC:</label>
-        <input type="number" id="target_soc" value="80" min="0" max="100">
-      </div>
-
-      <div class="form-group button-group">
-        <button type="submit">Add</button>
-      </div>
-    </div>
-  </form>
-</section>
-
-<script>
-  function addSchedule(event) {
-    event.preventDefault();
-    alert(
-      `Start: ${document.getElementById("start_time").value}\n` +
-      `End: ${document.getElementById("end_time").value}\n` +
-      `Target SOC: ${document.getElementById("target_soc").value}`
-    );
-  }
-</script>
-
-</body>
-</html>
+  <script>
+    function addSchedule(event) {
+      event.preventDefault();
+      alert(
+        `Start: ${document.getElementById("start_time").value_

@@ -59,7 +59,7 @@ def get_saving_sessions(kraken_token):
     response.raise_for_status()
     data = response.json()["data"]["savingSessions"]["events"]
 
-    # Filter only UPCOMING events
+    # Filter only ONGOING events
     ongoing = [event for event in data if event["status"] == "ONGOING"]
 
     # Convert startAt/endAt to datetime objects

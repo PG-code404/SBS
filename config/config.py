@@ -84,7 +84,7 @@ SCHEDULE_INTERVAL_MINUTES = int(os.getenv("SCHEDULE_INTERVAL_MINUTES", 30))
 SCHEDULE_POLL_INTERVAL = int(os.getenv("SCHEDULE_POLL_INTERVAL", 15))
 FUTURE_SCHEDULE_SLEEP = int(os.getenv("FUTURE_SCHEDULE_SLEEP", 60))
 GRACE_RETRY_INTERVAL = int(os.getenv("GRACE_RETRY_INTERVAL", 300))
-MAX_AGILE_PRICE_PPK = 22
+MAX_AGILE_PRICE_PPK = float(os.getenv("MAX_AGILE_PRICE_PPK", 15))
 SCHEDULER_RUNS_PER_DAY=3
 KEEP_ALIVE_API_KEY = os.getenv("KEEP_ALIVE_API_KEY", "default-dev-key")
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "default-dev-key")
@@ -134,6 +134,11 @@ PV_DERATING_FACTOR = 0.95  # 85% efficiency
 # Weather thresholds
 # -----------------------------
 CLOUD_MAX = int(os.getenv("CLOUD_MAX", "60"))
+
+# -----------------------------
+# Battery thresholds
+# -----------------------------
+
 TARGET_SOC = int(os.getenv("TARGET_SOC", "95"))
 MIN_SOC = int(os.getenv("MIN_SOC", "20"))
 BATTERY_KWH = float(os.getenv("BATTERY_KWH", "13.5"))

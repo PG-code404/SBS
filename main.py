@@ -7,6 +7,7 @@ import sys
 import signal
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
+from src.events import executor_wake_event
 
 load_dotenv()
 #from config_loader import config, DB_PATH, FLASK_SECRET_KEY
@@ -28,6 +29,7 @@ from src.SolarData import hasEnoughSolar, fetch_solar_data
 from src.Octopus_saving_sessions import get_kraken_token, get_saving_sessions, is_in_saving_session
 
 PROCESS_START_TIME = datetime.now()
+
 # -----------------------------
 # Logging & Timezone
 # -----------------------------
@@ -43,7 +45,7 @@ SOLAR_POWER_SKIP_W = SOLAR_POWER_SKIP_W or 800
 PEAK_START = PEAK_START or datetime.strptime("16:00", "%H:%M").time()
 PEAK_END = PEAK_END or datetime.strptime("19:00", "%H:%M").time()
 GRACE_RETRY_INTERVAL = GRACE_RETRY_INTERVAL or 300
-MAX_AGILE_PRICE_PPK = MAX_AGILE_PRICE_PPK or 22  # p/kWh default limit
+MAX_AGILE_PRICE_PPK = MAX_AGILE_PRICE_PPK or 15  # p/kWh default limit
 HEARTBEAT_INTERVAL = 60  # seconds
 
 # -----------------------------
@@ -178,15 +180,24 @@ def sleep_with_heartbeat(total_seconds):
     slept = 0
     while slept < total_seconds:
         sleep_chunk = min(HEARTBEAT_INTERVAL, total_seconds - slept)
-        time.sleep(sleep_chunk)
+
+        # Wait with interrupt
+        if executor_wake_event.wait(timeout=sleep_chunk):
+            # Event triggered – clear it and break early
+            executor_wake_event.clear()
+            logging.info("[Executor] Woken early due to new schedule or manual trigger.")
+            break
+
         slept += sleep_chunk
+        remaining = total_seconds - slept
+
         EXECUTOR_STATUS.update({
-            #"last_run": datetime.now(LOCAL_TZ).isoformat(),
-            "message":
-            f"Idle — sleeping {format_sec_to_hm(total_seconds - slept)} until next schedule"
+            "message": f"Idle — sleeping {format_sec_to_hm(remaining)} until next schedule",
+            "next_schedule_time":f"{format_sec_to_hm(remaining)}"
         })
         post_status_to_dashboard()
         logging.debug(EXECUTOR_STATUS["message"])
+
 
 
 # -----------------------------
@@ -271,30 +282,56 @@ def process_schedule_row(row, now: datetime):
         logging.warning("Could not read battery status; skipping.")
         EXECUTOR_STATUS.update({
             "message":
-            f"Schedule {schedule_id} skipped — battery status unavailable"
+            f"Schedule {schedule_id} skipped — battery status unavailable",
+            "active_schedule_id":None
         })
+        active_schedule_id = None
         post_status_to_dashboard()
         return
 
     soc = status.get('percentage_charged', 0.0)
     island = status.get('island_status', 'unknown') or 'unknown'
     solar_power = status.get('solar_power', 0)
+    usr_grid_charging_enabled_settings = status.get('grid_charging', False)
 
-    # Skip if off-grid
+    # Skip if off-grid and no retries left
     if island.lower().startswith('off_grid') and not should_retry(schedule_id):
-        logging.warning(f"Schedule {schedule_id} delayed — off-grid.")
+        logging.info(f"Schedule {schedule_id} cancelled — off-grid.")
 
         EXECUTOR_STATUS.update({
-            "message": f"Schedule {schedule_id} delayed — off-grid",
-            "active_schedule_id": {schedule_id},
+            "message": f"Schedule {schedule_id} cancelled — off-grid",
+            "active_schedule_id": None,
+            "soc": soc,
+            "solar_power": solar_power,
+            "island": island,
+            "current_price": current_price
+        })
+        post_status_to_dashboard()
+        add_decision(schedule_id, start_iso, end_iso, 'cancelled',
+                     'Powerwall off-grid', soc, solar_power, island)
+        mark_as_executed(schedule_id, "cancelled")
+        return
+    
+    # Skip if User has disabled grid charging
+    if not usr_grid_charging_enabled_settings and not should_retry(schedule_id):
+        logging.info(f"Schedule {schedule_id} cancelled — grid charging disabled.")
+
+        EXECUTOR_STATUS.update({
+            "message": f"Schedule {schedule_id} cancelled — grid charging disabled",
+            "active_schedule_id": schedule_id,
             "soc": soc,
             "solar_power": solar_power,
             "island": island,
             "current_price": current_price,
         })
         post_status_to_dashboard()
+        add_decision(schedule_id, start_iso, end_iso, 'cancelled',
+                     'Grid Charging disabled', soc, solar_power, island)
+        mark_as_executed(schedule_id, "cancelled")
+        active_schedule_id = None
         return
-
+    
+    # --- Octopus Saving Session check ---
     try:
         if OCTO_TOKEN and SAVING_SESSIONS:
             if is_in_saving_session(start_dt, end_dt, SAVING_SESSIONS):
@@ -316,7 +353,7 @@ def process_schedule_row(row, now: datetime):
     target_soc = row["target_soc"] if "target_soc" in row.keys(
     ) else 98  # default 98%
 
-    if manual_override:
+    if manual_override and not usr_grid_charging_enabled_settings:
         EXECUTOR_STATUS.update({
             "active_schedule_id":
             schedule_id,
@@ -390,7 +427,7 @@ def process_schedule_row(row, now: datetime):
         return  # exit after manual override handling
 
     # --- Non-manual schedules ---
-    # Cancel if peak
+    # Cancel if scheduled in peak window
     if in_peak_window(start_dt) or in_peak_window(end_dt):
         add_decision(schedule_id, start_iso, end_iso, 'cancelled',
                      'peak_window', soc, solar_power, island)
@@ -416,7 +453,8 @@ def process_schedule_row(row, now: datetime):
             f"⏰ Schedule {schedule_id} has expired (End: {end_dt}, Now: {now})"
         )
         mark_as_executed(schedule_id, "expired")
-        EXECUTOR_STATUS.update({"message": f"Schedule {schedule_id} expired"})
+        EXECUTOR_STATUS.update({"message": f"Schedule {schedule_id} expired","active_schedule_id": None})
+        active_schedule_id = None
         post_status_to_dashboard()
         return
 
@@ -427,7 +465,8 @@ def process_schedule_row(row, now: datetime):
             f"🕒 Waiting for schedule {schedule_id} (starts in {delta/60:.1f} min)"
         )
         EXECUTOR_STATUS.update(
-            {"message": f"Waiting to start schedule {schedule_id}"})
+            {"message": f"Waiting to start schedule {schedule_id}",
+                "active_schedule_id":None})
         post_status_to_dashboard()
         time.sleep(min(delta, 60))  # heartbeat every 1 min
         return
@@ -439,16 +478,11 @@ def process_schedule_row(row, now: datetime):
     current_price = fetch_agile_price_for_slot(start_iso,
                                                end_iso) or stored_price
     EXECUTOR_STATUS.update({
-        "current_price":
-        current_price,
-        "soc":
-        soc,
-        "solar_power":
-        solar_power,
-        "island":
-        island,
-        "message":
-        f"Charging from grid for schedule {schedule_id}"
+        "current_price":current_price,
+        "soc":soc,
+        "solar_power":solar_power,
+        "island":island,
+        "message":f"Charging from grid for schedule {schedule_id}"
     })
     post_status_to_dashboard()
 
@@ -558,6 +592,8 @@ def maybe_run_scheduler(last_run_time, runs_per_day=1):
 # Main Loop
 # -----------------------------
 def main():
+    print(f"[Executor Init in main.py] event id={id(executor_wake_event)}")
+
     signal.signal(signal.SIGINT, safe_shutdown)
     signal.signal(signal.SIGTERM, safe_shutdown)
 
