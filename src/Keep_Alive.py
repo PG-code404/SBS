@@ -8,6 +8,8 @@ from zoneinfo import ZoneInfo
 
 from flask import Flask, request, jsonify, redirect, url_for, session, render_template
 from authlib.integrations.flask_client import OAuth
+from authlib.integrations.base_client.errors import MismatchingStateError
+
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from waitress import serve
 
@@ -35,7 +37,26 @@ AUTHORIZED_EMAILS = [
 app = Flask(__name__,
             static_folder=os.path.join(os.getcwd(), "static"),
             template_folder=os.path.join(os.getcwd(), "templates"))
-app.secret_key = FLASK_SECRET_KEY
+app.secret_key = os.getenv("FLASK_SECRET_KEY", "dev-secret")
+"""
+# Determine environment
+FLASK_ENV = os.getenv("FLASK_ENV", "production").lower()  # "development" or "production"
+
+if FLASK_ENV == "development":
+    # Local testing over HTTP
+    app.config['SESSION_COOKIE_SECURE'] = False
+else:
+    # Production: enforce HTTPS
+    app.config['SESSION_COOKIE_SECURE'] = True
+
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+"""
+
+#app.config['SESSION_COOKIE_SECURE'] = False
+#app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+#app.config['SESSION_COOKIE_HTTPONLY'] = True
+#app.logger.setLevel(logging.DEBUG)
 
 oauth = OAuth(app)
 if GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET:
@@ -57,6 +78,13 @@ else:
 
 login_manager = LoginManager(app)
 login_manager.login_view = "home"  # type: ignore[assignment]
+
+def get_redirect_uri():
+    if os.getenv("FLASK_ENV") == "development":
+        return url_for("auth_callback", _external=True)
+    else:
+        # Use Cloud Run public URL in production
+        return url_for("auth_callback", _external=True, _scheme="https")
 
 
 class SimpleUser(UserMixin):
@@ -120,6 +148,13 @@ def home():
 def login():
     if not google:
         return "Google OAuth not configured", 503
+    
+    # Always regenerate a fresh unique state value and persist it in session
+    #state = os.urandom(16).hex()
+    #session['oauth_state'] = state
+    
+    
+    #redirect_uri = get_redirect_uri()
     redirect_uri = url_for("auth_callback", _external=True)
     return google.authorize_redirect(redirect_uri)
 
@@ -128,15 +163,42 @@ def login():
 def auth_callback():
     if not google:
         return "Google OAuth not configured", 503
-    token = google.authorize_access_token()
-    user_info = google.get("userinfo").json()
-    email = user_info.get("email")
-    if AUTHORIZED_EMAILS and email not in AUTHORIZED_EMAILS:
-        logger.warning(f"Unauthorized email login: {email}")
-        return "❌ Unauthorized — contact admin.", 403
-    session["user"] = user_info
-    login_user(SimpleUser(user_info))
-    return redirect(url_for("dashboard"))
+   
+    try:
+        #stored_state = session.get("oauth_state")
+        #returned_state = request.args.get("state")
+        token = google.authorize_access_token()
+        
+        # Prevent mismatched or expired session issues
+        #if not stored_state or stored_state != returned_state:
+            #session.pop("oauth_state", None)
+            #return redirect(url_for("login"))
+         
+        user_info = google.get("userinfo").json()
+        email = user_info.get("email")
+        if AUTHORIZED_EMAILS and email not in AUTHORIZED_EMAILS:
+            logger.warning(f"Unauthorized email login: {email}")
+            return "❌ Unauthorized — contact admin.", 403
+        
+        session["user"] = user_info
+        login_user(SimpleUser(user_info))
+        #session.modified = True
+        print("Session keys before callback:", session.keys())
+        return redirect(url_for("dashboard"))
+    
+    except MismatchingStateError as e:
+        # Common cause: user switched devices or browser tabs mid-login
+        logger.warning(f"OAuth state mismatch — possible CSRF/session timeout: {e}")
+        session.clear()
+        # 👇 Instead of internal error, clean redirect
+        return redirect(url_for("login", expired=1))
+    
+    except Exception as e:
+        logger.error(f"OAuth callback error: {e}")
+        return jsonify({
+            "error": "OAuth login failed",
+            "message": str(e)
+        }), 500
 
 
 @app.route("/logout", methods=["POST"])

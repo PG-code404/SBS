@@ -291,7 +291,6 @@ def process_schedule_row(row, now: datetime):
 
     soc = status.get('percentage_charged', 0.0)
     island = status.get('island_status', 'unknown') or 'unknown'
-    logging.info(island)
     solar_power = status.get('solar_power', 0)
     usr_grid_charging_enabled_settings = status.get('grid_charging', False)
 
