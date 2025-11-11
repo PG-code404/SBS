@@ -18,14 +18,40 @@ async function refreshStatus() {
   try {
     const response = await fetch("/status");
     const data = await response.json();
+
+    const fmt = val => (/^\d{4}-\d{2}-\d{2}/.test(val) ? formatShortTime(val) : val);
+
     safeSet("executor_status", data.message || data.executor_status_msg || "Idle");
-    safeSet("next_schedule_time", data.next_schedule_time || "Pending");
-    safeSet("last_scheduler_run", data.last_scheduler_run || "Not yet run");
+    safeSet("next_schedule_time", fmt(data.next_schedule_time || "Pending"));
+    safeSet("last_scheduler_run", fmt(data.last_scheduler_run || "Not yet run"));
     safeSet("active_schedule_id", data.active_schedule_id || "None");
     if (data.uptime !== undefined) safeSet("uptime", data.uptime.toFixed(0));
+
+    shortenAllTimestamps();
   } catch (err) {
     console.error("Failed to fetch status:", err);
   }
+}
+
+function formatShortTime(datetimeString) {
+  const date = new Date(datetimeString);
+  if (isNaN(date)) return datetimeString; // fallback if parsing fails
+
+  const day = date.getDate();
+  const month = date.toLocaleString('en-GB', { month: 'short' }); // e.g. Nov
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${day} ${month} ${hours}:${minutes}`; // "11 Nov 19:00"
+}
+
+function shortenAllTimestamps() {
+  document.querySelectorAll('.dt_value').forEach(el => {
+    const text = el.textContent.trim();
+    // detect ISO-like or YYYY-MM-DD HH:mm:ss patterns
+    if (/^\d{4}-\d{2}-\d{2}/.test(text)) {
+      el.textContent = formatShortTime(text);
+    }
+  });
 }
 
 // === Load Schedules ===
@@ -47,11 +73,11 @@ async function loadSchedules() {
 
       tr.innerHTML = `
         <td>${s.id}</td>
-        <td>${s.start_time}</td>
-        <td>${s.end_time}</td>
+        <td class="dt_value">${formatShortTime(s.start_time)}</td>
+        <td class="dt_value">${formatShortTime(s.start_time)}</td>
         <td>${s.target_soc}</td>
-        <td>${s.price_p_per_kwh}</td>
-        <td>${s.source}</td>
+        <td>${s.price_p_per_kwh ? s.price_p_per_kwh.toFixed(2) : "0.00"}</td>
+        <td>${s.source === "manual" ? "User" : "System"}</td>
         <td><button class="delete-btn" data-id="${s.id}"><i class="fa-regular fa-trash-can"></i></button></td>`;
       tbody.appendChild(tr);
     });
@@ -156,6 +182,7 @@ document.getElementById("logout-btn")?.addEventListener("click", async () => {
 
 // === Auto-refresh loops ===
 document.addEventListener("DOMContentLoaded", () => {
+  shortenAllTimestamps();
   loadSchedules();
   refreshStatus();
   setInterval(refreshStatus, 5000);

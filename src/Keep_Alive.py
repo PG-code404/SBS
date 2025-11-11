@@ -16,7 +16,7 @@ from waitress import serve
 from src.ScheduleChargeSlots import add_manual_charge_schedule, scheduler_loop, scheduler_refresh_event
 from src.events import executor_wake_event
 from src.db import fetch_pending_schedules, remove_schedule
-from src.timezone_utils import to_local
+from src.timezone_utils import to_local,dt_to_short
 import main
 
 # Logging
@@ -85,6 +85,18 @@ def get_redirect_uri():
     else:
         # Use Cloud Run public URL in production
         return url_for("auth_callback", _external=True, _scheme="https")
+
+def short_fmt(dt):
+    """Format datetimes like '11 Nov, 19:00'."""
+    if not dt:
+        return ""
+    # Handle string timestamps safely too
+    if isinstance(dt, str):
+        try:
+            dt = datetime.fromisoformat(dt)
+        except ValueError:
+            return dt  # return unchanged if not a valid datetime string
+    return dt.strftime("%d %b, %H:%M")
 
 
 class SimpleUser(UserMixin):
@@ -228,16 +240,15 @@ def dashboard():
             last_run = None
     next_schedule = main.EXECUTOR_STATUS.get("next_schedule_time")
 
-    last_run_str = last_run.strftime(
-        "%Y-%m-%d %H:%M:%S") if last_run else "Not yet run"
+    last_scheduler_run_str = dt_to_short(last_run) if last_run else "Not yet run"
     next_schedule_time = next_schedule if next_schedule else "Pending"
 
     return render_template(
         "dashboard.html",
         user=user,
-        now=now,
+        now= dt_to_short(now),
         executor_status_msg=executor_status_msg,
-        last_scheduler_run=last_run_str,
+        last_scheduler_run=last_scheduler_run_str,
         next_schedule_time=next_schedule_time,
         uptime=uptime,
         active_schedule_id=main.EXECUTOR_STATUS.get("active_schedule_id"),

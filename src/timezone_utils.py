@@ -37,3 +37,15 @@ def to_utc(dt_value):
         return dt_local.astimezone(ZoneInfo("UTC")).isoformat()
     except Exception:
         return dt_value
+    
+def dt_to_short(dt):
+    """Format datetimes like '11 Nov, 19:00'."""
+    if not dt:
+        return ""
+    # Handle string timestamps safely too
+    if isinstance(dt, str):
+        try:
+            dt = datetime.fromisoformat(dt)
+        except ValueError:
+            return dt  # return unchanged if not a valid datetime string
+    return dt.strftime("%d %b, %H:%M")
