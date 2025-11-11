@@ -76,7 +76,7 @@ async function loadSchedules() {
         <td>${formatShortTime(s.start_time)}</td>
         <td>${formatShortTime(s.start_time)}</td>
         <td>${s.target_soc}</td>
-        <td>${s.price_p_per_kwh ? s.price_p_per_kwh.toFixed(2) : "0.00"}</td>
+        <td>${s.price_p_per_kwh != null && !isNaN(Number(s.price_p_per_kwh))? Number(s.price_p_per_kwh).toFixed(2): "-"}</td>
         <td>${s.source === "manual" ? "User" : "System"}</td>
         <td><button class="delete-btn" data-id="${s.id}"><i class="fa-regular fa-trash-can"></i></button></td>`;
       tbody.appendChild(tr);
