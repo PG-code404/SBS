@@ -273,7 +273,7 @@ th {
     align-items: flex-start;
     flex: 0 0 auto;
 }
-@media DISABLED {
+@media DISABLED {}
 /* Mobile Layout */
 @media (max-width: 768px) {
     #manualForm .form-row {
@@ -365,4 +365,4 @@ th {
     font-size: 0.95rem;
   }
 }
-}
+

@@ -292,12 +292,11 @@ def process_schedule_row(row, now: datetime):
     soc = status.get('percentage_charged', 0.0)
     island = status.get('island_status', 'unknown') or 'unknown'
     solar_power = status.get('solar_power', 0)
-    usr_grid_charging_enabled_settings = status.get('grid_charging', False)
+    usr_grid_charging_enabled_settings = status.get('grid_charging', False) # Not used yet
 
     # Skip if off-grid and no retries left
     if island.lower().startswith('off_grid'):
         logging.info(f"Schedule {schedule_id} cancelled — off-grid.")
-
         EXECUTOR_STATUS.update({
             "message": f"Schedule {schedule_id} cancelled — off-grid",
             "active_schedule_id": None,
@@ -311,7 +310,9 @@ def process_schedule_row(row, now: datetime):
                      'Powerwall off-grid', soc, solar_power, island)
         mark_as_executed(schedule_id, "cancelled")
         return
-
+    
+    """
+    # More tests needed. Parked this for now. 
     # Skip if User has disabled grid charging and no retries left
     if not usr_grid_charging_enabled_settings:
         logging.info(f"Schedule {schedule_id} cancelled — grid charging disabled.")
@@ -330,7 +331,7 @@ def process_schedule_row(row, now: datetime):
         mark_as_executed(schedule_id, "cancelled")
         active_schedule_id = None
         return
-
+    """
     # --- Octopus Saving Session check ---
     # Skip charging as User is participating in Saving sessions
     try:
@@ -354,11 +355,11 @@ def process_schedule_row(row, now: datetime):
 
     if manual_override:
         # If grid charging disabled: either retry later or cancel if no retries left
-        if not usr_grid_charging_enabled_settings:
+        """if not usr_grid_charging_enabled_settings:
             if not should_retry(schedule_id):
                 logging.info(f"Schedule {schedule_id} cancelled — grid charging disabled (manual override, no retries).")
                 EXECUTOR_STATUS.update({
-                    "message": f"Schedule {schedule_id} cancelled — grid charging disabled",
+                    "message": f"Manual Schedule {schedule_id} cancelled — grid charging disabled",
                     "active_schedule_id": None,
                     "soc": soc,
                     "solar_power": solar_power,
@@ -381,7 +382,7 @@ def process_schedule_row(row, now: datetime):
                 })
                 post_status_to_dashboard()
                 return
-
+    """
         # Grid charging enabled -> perform manual override
         EXECUTOR_STATUS.update({
             "active_schedule_id": schedule_id,

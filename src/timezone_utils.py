@@ -48,4 +48,4 @@ def dt_to_short(dt):
             dt = datetime.fromisoformat(dt)
         except ValueError:
             return dt  # return unchanged if not a valid datetime string
-    return dt.strftime("%d %b, %H:%M")
+    return dt.strftime("%d %b %H:%M")

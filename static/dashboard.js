@@ -73,8 +73,8 @@ async function loadSchedules() {
 
       tr.innerHTML = `
         <td>${s.id}</td>
-        <td class="dt_value">${formatShortTime(s.start_time)}</td>
-        <td class="dt_value">${formatShortTime(s.start_time)}</td>
+        <td>${formatShortTime(s.start_time)}</td>
+        <td>${formatShortTime(s.start_time)}</td>
         <td>${s.target_soc}</td>
         <td>${s.price_p_per_kwh ? s.price_p_per_kwh.toFixed(2) : "0.00"}</td>
         <td>${s.source === "manual" ? "User" : "System"}</td>
