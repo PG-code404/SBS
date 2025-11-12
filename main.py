@@ -648,8 +648,7 @@ def main():
         # Call to get forecasted solar data
         fetch_solar_data()
         # Begin to check if scheduler needs to run again
-        last_scheduler_run = maybe_run_scheduler(last_scheduler_run,
-                                                 runs_per_day)
+        last_scheduler_run = maybe_run_scheduler(last_scheduler_run,runs_per_day)
         last_scheduler_run_iso = last_scheduler_run.isoformat(
         ) if last_scheduler_run else None
         EXECUTOR_STATUS.update({"last_scheduler_run": last_scheduler_run_iso})
