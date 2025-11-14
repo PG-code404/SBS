@@ -2,7 +2,6 @@
 ### Integrating Solar Forecasting, NetZero API, and Octopus Agile Dynamic Tariffs  
 
 **Author:** Pradeep Ganesan  
-**Co-author:** ChatGPT  
 **License:** Personal and Non-Commercial Use Only  
 
 ---
@@ -14,6 +13,7 @@ It integrates **Octopus Agile** dynamic tariffs, **NetZero API** for Tesla Power
 
 The system runs autonomously with a **Flask web dashboard** for monitoring and control, **Google OAuth** authentication, and **automated scheduling logic** using **real-time data**.
 
+If you would like to sponsor me financially, then please use [Paypal](https://paypal.me/helloPGanesan)
 ---
 
 ## 🌞 Key Features
