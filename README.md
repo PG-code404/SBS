@@ -32,32 +32,32 @@ If you would like to sponsor me financially, then please use [Paypal](https://pa
 
 ## 📁 Project Structure
 
-project_root/
-├── main.py # Core execution logic and executor status tracking
-├── src/
-│ ├── ScheduleChargeSlots.py # Fetches Agile rates and generates optimal schedules
-│ ├── Keep_Alive.py # Flask web dashboard and OAuth authentication
-│ ├── netzero_api.py # Interface to NetZero/Tesla Powerwall API
-│ ├── db.py # Database interaction (SQLite)
-│ ├── events.py # Global threading event synchronization
-│ ├── timezone_utils.py # Timezone conversions and formatting
-│ ├── SolarData.py # (Optional) Solar forecasting logic
-│ ├── Octopus_saving_sessions.py # (Optional) Additional tariff management
-│ └── config/
-│ └── config.py # Configuration constants and URLs
-├── templates/
-│ ├── dashboard.html # Main control and status view
-│ └── login.html # Google login page
-├── static/ # CSS, JS, and images
-├── requirements.txt # Python dependencies
-└── README.md
+SBS/ <br />
+├── main.py # Core execution logic and executor status tracking <br />
+├── src/  <br />
+│ ├── ScheduleChargeSlots.py # Fetches Agile rates and generates optimal schedules <br />
+│ ├── Keep_Alive.py # Flask web dashboard and OAuth authentication <br />
+│ ├── netzero_api.py # Interface to NetZero/Tesla Powerwall API <br />
+│ ├── db.py # Database interaction (SQLite) <br />
+│ ├── events.py # Global threading event synchronization <br />
+│ ├── timezone_utils.py # Timezone conversions and formatting <br />
+│ ├── SolarData.py # (Optional) Solar forecasting logic <br />
+│ ├── Octopus_saving_sessions.py # (Optional) Additional tariff management <br />
+│ └── config/ <br />
+│ └── config.py # Configuration constants and URLs <br />
+├── templates/ <br />
+│ ├── dashboard.html # Main control and status view <br />
+│ └── login.html # Google login page <br />
+├── static/ # CSS, JS, and images <br />
+├── requirements.txt # Python dependencies <br />
+└── README.md <br />
 
 ## ⚙️ Installation
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/<your-username>/smart-battery-scheduler.git
-cd smart-battery-scheduler
+git clone https://github.com/PG-code404/SBS.git
+cd SBS
 
 **2. Create and activate a virtual environment**
 python -m venv venv
@@ -67,41 +67,41 @@ source venv/bin/activate   # On Windows: venv\Scripts\activate
 
 pip install -r requirements.txt
 
+**4. Create a Google Cloud OAuth App**
+1. Go to [https://console.cloud.google.com/apis/credentials](https://console.cloud.google.com/apis/credentials)
+2. Create Credentials → OAuth Client ID
+3. Choose Web application
+4. Under Authorized JavaScript origins, add: http://localhost:8080 or your Hosted URL
+5. Under Authorized redirect URIs, add: http://localhost:8080/callback or your Hosted URL
+6. Copy the generated:
+	Client ID
+	Client Secret
+
 ** 🔧 Configuration**
 1. Environment Variables (.env)
 
 Create a .env file in the project root with the following contents:
 
 # --- Flask Web Server ---
-FLASK_SECRET_KEY=your_flask_secret
-KEEP_ALIVE_API_KEY=your_internal_api_key
+FLASK_SECRET_KEY=<your_flask_secret> #Any random secret ID
+KEEP_ALIVE_API_KEY= <your_internal_api_key> #Any random secret ID
 
 # --- Google OAuth Setup ---
-GOOGLE_CLIENT_ID=your_google_client_id
-GOOGLE_CLIENT_SECRET=your_google_client_secret
+GOOGLE_CLIENT_ID= <your_google_client_id>
+GOOGLE_CLIENT_SECRET=<your_google_client_secret>
 AUTHORIZED_EMAILS=you@example.com,another@example.com
 FLASK_ENV=production  # or development
 
 # --- NetZero / Powerwall Integration ---
-NETZERO_API_KEY=your_netzero_api_key
-SITE_ID=your_site_id
-NETZERO_URL_TEMPLATE=https://api.nzero.io/v1/site/{SITE_ID}/settings
+NETZERO_API_KEY= <your_netzero_api_key> #This is the Netzero Developer API token found in Netzero App
+NETZERO_SITE_ID= <your_site_id> # Energy System ID found in Netzero app
 
-# --- Octopus Agile Tariffs ---
-AGILE_URL=https://api.octopus.energy/v1/products/AGILE-xx-xx-xx/electricity-tariffs/E-1R-AGILE-xx-xx-xx-1/capacity
+OCTOPUS_API_KEY = <Octopus Developer access>
+OCTOPUS_ACCOUNT_NUMBER=<Your Octopus Account number>
+KEEP_ALIVE_PORT=8080
 
 # --- Simulation ---
-SIMULATION_MODE=False
-
-# --- Timezone & Scheduling ---
-TIMEZONE=Europe/London
-RECOMMENDED_SLOTS=5
-BATTERY_KWH=13.5
-CHARGE_RATE_KW=3.5
-SLOT_HOURS=0.5
-TARGET_SOC=98
-BATTERY_RESERVE_START=20
-
+SIMULATION_MODE=False # For testing purposes
 
 🧠 You can adjust SIMULATION_MODE=True for testing without sending API commands.
 
