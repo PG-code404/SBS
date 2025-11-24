@@ -1,31 +1,42 @@
 import requests
 import logging
-from config.config import NETZERO_API_KEY, SITE_ID, NETZERO_URL_TEMPLATE, SIMULATION_MODE
+from config.config import (NETZERO_API_KEY, SITE_ID, NETZERO_URL_TEMPLATE, 
+                           SIMULATION_MODE)
 
 NETZERO_URL = NETZERO_URL_TEMPLATE.format(SITE_ID=SITE_ID)
 
 # -----------------------------
 # Set grid charging / reserve only (no operational_mode toggles)
 # -----------------------------
-def set_charge(reserve: int, grid_charging: bool) -> bool:
+def set_charge(reserve: int, grid_charging: bool, operational_mode: str | None = None) -> bool:
     """
     Only updates backup_reserve_percent and grid_charging.
     Returns True on success (or in simulation), False on failure.
     """
     if SIMULATION_MODE:
-        logging.info(f"[SIMULATION] set_charge: reserve={reserve} grid_charging={grid_charging}")
+        logging.info(f"[SIMULATION] set_charge: reserve={reserve} grid_charging={grid_charging} operational_mode={operational_mode}")
         return True
 
+    if operational_mode is None:
+        if grid_charging:
+            operational_mode = "autonomous"
+        else:
+            operational_mode = "autonomous"
+
     payload = {
-        "backup_reserve_percent": reserve,
-        "grid_charging": grid_charging
+        "grid_charging": grid_charging,
+        "operational_mode": operational_mode
     }
+    # Include reserve only when NOT in backup mode
+    if operational_mode != "backup":
+        payload["backup_reserve_percent"] = reserve
+    
     headers = {"Authorization": f"Bearer {NETZERO_API_KEY}", "Content-Type": "application/json"}
 
     try:
         resp = requests.post(NETZERO_URL, json=payload, headers=headers, timeout=30)
         resp.raise_for_status()
-        logging.info(f"NetZero set_charge ok: reserve={reserve} grid_charging={grid_charging}")
+        logging.info(f"NetZero set_charge ok: reserve={reserve} grid_charging={grid_charging} operational_mode={operational_mode}")
         return True
     except requests.RequestException as e:
         logging.error(f"NetZero set_charge failed: {e}")
@@ -38,6 +49,7 @@ def get_battery_status():
     """
     Returns dict with keys (consistent):
       - percentage_charged (float)
+      - mode (str)
       - live_percentage_charged (float, if present)
       - grid_charging (bool)
       - grid_status (str)
@@ -53,6 +65,7 @@ def get_battery_status():
         fake = {
             "percentage_charged": 58.5,
             "grid_charging": False,
+            "operational_mode": "autonomous",
             "grid_status": "Active",
             "island_status": "on_grid",
             "battery_power": 0,
@@ -71,6 +84,7 @@ def get_battery_status():
 
         live = data.get("live_status", {}) or {}
         # prefer live.percentage_charged if available
+        mode = data.get("operational_mode")
         percentage = None
         if live.get("percentage_charged") is not None:
             percentage = live.get("percentage_charged")
@@ -81,13 +95,14 @@ def get_battery_status():
             "percentage_charged": round(float(percentage) if percentage is not None else 0.0, 2),
             "grid_charging": bool(data.get("grid_charging", False)),
             "grid_status": live.get("grid_status") or data.get("grid_status"),
+            "operational_mode": mode,
             "island_status": live.get("island_status") or data.get("island_status") or "unknown",
             "battery_power": live.get("battery_power"),
             "solar_power": live.get("solar_power"),
             "load_power": live.get("load_power"),
             "timestamp": live.get("timestamp") or data.get("timestamp")
         }
-        logging.info(f"NetZero status: SoC={result['percentage_charged']}%, island={result['island_status']}, grid_charging={result['grid_charging']}")
+        logging.info(f"NetZero status: SoC={result['percentage_charged']}%, island={result['island_status']}, grid_charging={result['grid_charging']}, mode={mode}")
         return result
 
     except requests.RequestException as e:

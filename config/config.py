@@ -64,6 +64,7 @@ AGILE_URL = "https://api.octopus.energy/v1/products/AGILE-18-02-21/electricity-t
 WEATHER_API_BASEURL = "https://api.open-meteo.com/v1/forecast"
 POSTCODE_URL_TEMPLATE = "https://api.postcodes.io/postcodes/{CUST_POSTCODE}"
 OCTOPUS_GRAPHQL_URL = "https://api.octopus.energy/v1/graphql/"
+CLOUD_RUN_URL = "https://agileoctopw-697014942939.europe-west1.run.app"
 
 # -----------------------------
 # NetZero API Configuration
@@ -72,7 +73,7 @@ NETZERO_API_KEY = os.getenv("NETZERO_API_KEY", "")
 SITE_ID = os.getenv("NETZERO_SITE_ID", "")
 
 # Battery reserve & thresholds
-BATTERY_RESERVE_START = int(os.getenv("BATTERY_RESERVE_START", 80))
+BATTERY_RESERVE_START = int(os.getenv("BATTERY_RESERVE_START", 100))
 BATTERY_RESERVE_END = int(os.getenv("BATTERY_RESERVE_END", 20))
 SOC_SKIP_THRESHOLD = int(os.getenv("SOC_SKIP_THRESHOLD", 90))
 
@@ -84,8 +85,8 @@ SCHEDULE_INTERVAL_MINUTES = int(os.getenv("SCHEDULE_INTERVAL_MINUTES", 30))
 SCHEDULE_POLL_INTERVAL = int(os.getenv("SCHEDULE_POLL_INTERVAL", 15))
 FUTURE_SCHEDULE_SLEEP = int(os.getenv("FUTURE_SCHEDULE_SLEEP", 60))
 GRACE_RETRY_INTERVAL = int(os.getenv("GRACE_RETRY_INTERVAL", 300))
-MAX_AGILE_PRICE_PPK = float(os.getenv("MAX_AGILE_PRICE_PPK", 15))
-SCHEDULER_RUNS_PER_DAY = 3
+MAX_AGILE_PRICE_PPK = float(os.getenv("MAX_AGILE_PRICE_PPK", 16))
+SCHEDULER_RUNS_PER_DAY = 4
 KEEP_ALIVE_API_KEY = os.getenv("KEEP_ALIVE_API_KEY", "default-dev-key")
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "default-dev-key")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "default-dev-key")
@@ -127,7 +128,7 @@ PV_SOTC_WATTAGE = 500  # Standard Test Condition wattage
 PV_NOMINAL_WATTAGE = 376  # User system size in Watts
 PV_NOMINAL_IRRADIANCE = 1000  # W/m²
 PV_NUM_PANELS = 20  # Max number of panels
-PV_DERATING_FACTOR = 0.95  # 85% efficiency
+PV_DERATING_FACTOR = 0.95  # 95% efficiency
 
 
 # -----------------------------
@@ -139,10 +140,10 @@ CLOUD_MAX = int(os.getenv("CLOUD_MAX", "60"))
 # Battery thresholds
 # -----------------------------
 
-TARGET_SOC = int(os.getenv("TARGET_SOC", "95"))
+TARGET_SOC = int(os.getenv("TARGET_SOC", "100"))
 MIN_SOC = int(os.getenv("MIN_SOC", "20"))
 BATTERY_KWH = float(os.getenv("BATTERY_KWH", "13.5"))
-CHARGE_RATE_KW = float(os.getenv("CHARGE_RATE_KW", "5"))
+CHARGE_RATE_KW = float(os.getenv("CHARGE_RATE_KW", "1.7"))
 
 # -----------------------------
 # Agile API

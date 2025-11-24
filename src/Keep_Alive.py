@@ -18,6 +18,7 @@ from src.events import executor_wake_event
 from src.db import fetch_pending_schedules, remove_schedule
 from src.timezone_utils import to_local,dt_to_short
 import main
+from main import cancel_schedule
 
 # Logging
 logging.basicConfig(level=logging.INFO)
@@ -316,7 +317,7 @@ def pending_schedules():
 @allow_internal_or_logged_in
 def get_status():
     from datetime import datetime
-    from main import PROCESS_START_TIME
+    from main_bk import PROCESS_START_TIME
 
     return jsonify({
         "executor_status_msg":
@@ -367,8 +368,9 @@ def delete_schedule(schedule_id: int):
         # Call your DB function to delete schedule
         remove_schedule(schedule_id)
         logging.info(f"Schedule {schedule_id} deleted.")
-        scheduler_refresh_event.set()
-        executor_wake_event.set()
+        #scheduler_refresh_event.set()
+        cancel_schedule(schedule_id)
+        #executor_wake_event.set()
         return jsonify({
             "status": "ok",
             "message": f"Schedule {schedule_id} is deleted"

@@ -11,6 +11,7 @@ from config.config import (
 )
 
 from src.db import add_schedule,add_schedules_batch,add_manual_override
+from src.netzero_api import get_battery_status
 
 from src.timezone_utils import to_utc
 
@@ -72,18 +73,48 @@ def add_manual_charge_schedule(start_time_str: str, end_time_str: str, target_so
     scheduler_refresh_event.set()
     print("[Scheduler] Manual schedule added — scheduler refresh triggered.")
 
+def compute_required_kwh(current_soc: float, target_soc: float = TARGET_SOC):
+    """
+    Returns how many kWh are needed to go from current SoC to target SoC.
+    """
+    delta_soc = max(0, target_soc - current_soc)
+    return (delta_soc / 100.0) * BATTERY_KWH
+
+def compute_required_hours(kwh_needed: float):
+    """
+    Convert kWh needed into hours based on CHARGE_RATE_KW.
+    """
+    if CHARGE_RATE_KW <= 0:
+        return 0
+    return kwh_needed / CHARGE_RATE_KW
+
+def compute_required_slots(hours_needed: float):
+    slot_hours = SLOT_HOURS  # from config (e.g. 0.5 hours / 30 mins)
+    return max(1, int(hours_needed / slot_hours + 0.999))  # round up
 
 def main():
     logging.info("🔄 Scheduler running — selecting cheapest Agile slots...")
     #init_db()
-
+    
+    try:
+        soc = get_battery_status()
+        current_soc = float(soc.get('percentage_charged', 0)) if soc else 0.0
+        kwh_needed = compute_required_kwh(current_soc)
+        hours_needed = compute_required_hours(kwh_needed)
+        slots_count = compute_required_slots(hours_needed)
+        logging.info(f"Schedules - Current SOC {current_soc} KWH {kwh_needed} hours {hours_needed} Slots {slots_count}")
+    except Exception as e:
+        logging.error(f"⚠️ Failed to auto-compute slots, falling back to RECOMMENDED_SLOTS: {e}")
+        slots_count = RECOMMENDED_SLOTS or 5
+        logging.info(f"Using fallback slots_count = {slots_count}.")
+        
     results = fetch_agile_rates()
     if not results:
         logging.warning("⚠️ No Agile rates returned.")
         return
 
     df = parse_rates_to_local(results)
-    slots_count = max(1, RECOMMENDED_SLOTS or 5)
+    # refactored to automatically select number of charging slots 
     chosen = select_cheapest_upcoming_slots(df, slots_count)
     chosen_sorted = chosen.sort_values("start")
 

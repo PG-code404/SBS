@@ -216,6 +216,30 @@ def fetch_pending_schedules() -> List[Tuple]:
     conn.close()
     return rows
 
+def get_next_schedule(current_end: datetime, lookahead_minutes: int = 30):
+    """
+    Returns the next schedule that starts within the lookahead window.
+    current_end: datetime → end time of the current schedule.
+    """
+    rows = fetch_pending_schedules()
+    if not rows:
+        return None
+
+    for row in rows:
+        start_dt = datetime.fromisoformat(row["start_time"]).replace(tzinfo=LOCAL_TZ)
+
+        # Only consider schedules starting *after* the current schedule
+        if start_dt <= current_end:
+            continue
+
+        delta = (start_dt - current_end).total_seconds()
+
+        if 0 <= delta <= lookahead_minutes * 60:
+            return row  # Found next schedule within lookahead window
+
+    return None  # No upcoming schedule soon
+
+
 def update_schedule_price(schedule_id: int, price: float) -> bool:
     try:
         sql = f"UPDATE {DB_NAMESPACE} SET price_p_per_kwh = ? WHERE id = ?"
@@ -250,7 +274,6 @@ def remove_schedule(schedule_id: int) -> bool:
         sql = f"DELETE FROM {DB_NAMESPACE} WHERE id = ?"
         safe_execute(sql, (schedule_id,))
         logging.info(f"Schedule {schedule_id} deleted.")
-        
         add_decision(schedule_id, None, None, "deleted", "Deleted by User")
     
         conn.commit()

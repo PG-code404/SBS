@@ -106,7 +106,7 @@ async function addSchedule(event) {
     // ✅ Clear input fields after adding
     document.getElementById("start_time").value = "";
     document.getElementById("end_time").value = "";
-    document.getElementById("target_soc").value = "80"; // optional: reset to default
+    document.getElementById("target_soc").value = "100"; // optional: reset to default
 
   } catch (err) {
     showMessage("Error adding schedule.", "error");
@@ -128,7 +128,7 @@ function showConfirm(message) {
     });
 }
 
-// Usage in your delete handler
+// Usage in the delete handler
 document.addEventListener("click", async (event) => {
     const btn = event.target.closest(".delete-btn");
     if (!btn) return;
