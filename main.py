@@ -58,6 +58,11 @@ EXECUTOR_STATUS = {
 }
 active_schedule_id = None
 
+def force_main_sigint(signum, frame):
+    raise KeyboardInterrupt
+
+signal.signal(signal.SIGINT, force_main_sigint)
+
 # ---------------- Helpers ----------------
 def format_sec_to_hm(seconds: float) -> str:
     seconds = round(seconds)
@@ -134,6 +139,20 @@ def sleep_with_heartbeat(total_seconds):
         post_status_to_dashboard()
         logging.debug(EXECUTOR_STATUS["message"])
 
+# Debugging multiple threads
+import threading
+
+def print_threads():
+    logging.info("\n=== Active Threads ===")
+    for t in threading.enumerate():
+        logging.info(f"- {t.name} (daemon={t.daemon})")
+    logging.info("======================\n")
+
+def debug_threads():
+    logging.info("\n=== THREAD DEBUG INFO ===")
+    for t in threading.enumerate():
+        logging.info(f"Thread: {t.name}, Alive: {t.is_alive()}, Daemon: {t.daemon}")
+    logging.info("==========================\n")
 
 # ---------------- Safe Shutdown ----------------
 def safe_shutdown(signal_received=None, frame=None):
