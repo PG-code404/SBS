@@ -60,7 +60,7 @@ AGILE_CACHE = os.path.join(CACHE_DIR, "agile_cache.json")
 # URLs
 # -----------------------------
 NETZERO_URL_TEMPLATE = "https://api.netzero.energy/api/v1/{SITE_ID}/config"
-AGILE_URL = "https://api.octopus.energy/v1/products/AGILE-18-02-21/electricity-tariffs/E-1R-AGILE-18-02-21-H/standard-unit-rates/"
+AGILE_URL = "https://api.octopus.energy/v1/products/AGILE-24-10-01/electricity-tariffs/E-1R-AGILE-24-10-01-H/standard-unit-rates/"
 WEATHER_API_BASEURL = "https://api.open-meteo.com/v1/forecast"
 POSTCODE_URL_TEMPLATE = "https://api.postcodes.io/postcodes/{CUST_POSTCODE}"
 OCTOPUS_GRAPHQL_URL = "https://api.octopus.energy/v1/graphql/"
@@ -85,7 +85,7 @@ SCHEDULE_INTERVAL_MINUTES = int(os.getenv("SCHEDULE_INTERVAL_MINUTES", 30))
 SCHEDULE_POLL_INTERVAL = int(os.getenv("SCHEDULE_POLL_INTERVAL", 15))
 FUTURE_SCHEDULE_SLEEP = int(os.getenv("FUTURE_SCHEDULE_SLEEP", 60))
 GRACE_RETRY_INTERVAL = int(os.getenv("GRACE_RETRY_INTERVAL", 300))
-MAX_AGILE_PRICE_PPK = float(os.getenv("MAX_AGILE_PRICE_PPK", 16))
+MAX_AGILE_PRICE_PPK = float(os.getenv("MAX_AGILE_PRICE_PPK", 16)) # Safeguard rule to allow charging at a price not higher than this 
 SCHEDULER_RUNS_PER_DAY = 4
 KEEP_ALIVE_API_KEY = os.getenv("KEEP_ALIVE_API_KEY", "default-dev-key")
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "default-dev-key")
@@ -121,12 +121,14 @@ WEATHER_CACHE_EXPIRY_HOURS = int(os.getenv("WEATHER_CACHE_EXPIRY_HOURS", 6))
 MIN_SOLAR_EXPECTED_TODAY = float(os.getenv("MIN_SOLAR_EXPECTED_TODAY", 2.0))
 WEATHER_HOURLY_VARS = ["temperature_2m", "cloud_cover"]
 WEATHER_CACHE_TTL = int(os.getenv("WEATHER_CACHE_TTL", "3600"))
-TIMEZONE = "Europe/London"  # Default, will be dynamically resolved below
-PV_TILT_ANGLE = 30 # degrees, default to 0 (Horizontal)
+TIMEZONE = "Europe/London"  # Default
+
+# For accurate weather forecast, enter your home PV set up 
+PV_TILT_ANGLE = 30 # in degrees, default to 0 (Horizontal) for PV position angle
 PV_AZIMUTH_ANGLE = 25 # degrees, default to 0 (0° South, -90° East, 90° West, ±180° North)
-PV_SOTC_WATTAGE = 500  # Standard Test Condition wattage
-PV_NOMINAL_WATTAGE = 376  # User system size in Watts
-PV_NOMINAL_IRRADIANCE = 1000  # W/m²
+PV_SOTC_WATTAGE = 500  # Standard Test Condition wattage of the panel
+PV_NOMINAL_WATTAGE = 376  # User PV nominal wattage in Watts 
+PV_NOMINAL_IRRADIANCE = 1000  # in W/m², default 
 PV_NUM_PANELS = 20  # Max number of panels
 PV_DERATING_FACTOR = 0.95  # 95% efficiency
 

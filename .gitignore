@@ -12,6 +12,7 @@ dist/
 build/
 
 data/*.db
+data/
 data/logs/*.log
 cache/*.json
 
