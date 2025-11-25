@@ -64,7 +64,7 @@ AGILE_URL = "https://api.octopus.energy/v1/products/AGILE-24-10-01/electricity-t
 WEATHER_API_BASEURL = "https://api.open-meteo.com/v1/forecast"
 POSTCODE_URL_TEMPLATE = "https://api.postcodes.io/postcodes/{CUST_POSTCODE}"
 OCTOPUS_GRAPHQL_URL = "https://api.octopus.energy/v1/graphql/"
-CLOUD_RUN_URL = "https://agileoctopw-697014942939.europe-west1.run.app"
+CLOUD_RUN_URL = "" # default; Enter a cloud hosted URL if any
 
 # -----------------------------
 # NetZero API Configuration
@@ -173,4 +173,4 @@ RECOMMENDED_SLOTS = int(os.getenv("RECOMMENDED_SLOTS", "5"))
 SLOT_HOURS = float(os.getenv("SLOT_HOURS", "0.5"))
 
 # USER
-CUST_POSTCODE = os.getenv("CUST_POSTCODE", "SN40GJ") # UK Postcode of the site
+CUST_POSTCODE = os.getenv("CUST_POSTCODE", "XY991AA") # UK Postcode of the site
