@@ -14,6 +14,7 @@ The system runs autonomously with a **Flask web dashboard** for monitoring and c
 <img width="960" height="785" alt="Dashboard" src="https://github.com/user-attachments/assets/a993322f-34d6-4eff-9785-b3d1c6132e30" />
 
 If you would like to sponsor me financially, then please use [Paypal](https://paypal.me/helloPGanesan)
+<br />[New to Octopus?](https://share.octopus.energy/abundant-silver-156) you could use my referral so both can save some bills 
 ---
 ## 🌞 Key Features
 - 🔋 **Automated Tesla Powerwall charge scheduling** based on Octopus Agile rates  
