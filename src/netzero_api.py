@@ -21,7 +21,7 @@ def set_charge(reserve: int, grid_charging: bool, operational_mode: str | None =
         if grid_charging:
             operational_mode = "autonomous"
         else:
-            operational_mode = "autonomous"
+            operational_mode = "self_consumption"
 
     payload = {
         "grid_charging": grid_charging,

@@ -317,7 +317,7 @@ def pending_schedules():
 @allow_internal_or_logged_in
 def get_status():
     from datetime import datetime
-    from main_bk import PROCESS_START_TIME
+    from main import PROCESS_START_TIME
 
     return jsonify({
         "executor_status_msg":

@@ -324,8 +324,9 @@ def process_schedule_row(row, now: datetime):
             soc = status.get('percentage_charged', soc) if status else soc
             EXECUTOR_STATUS.update({"soc": soc, "message": f"Charging schedule {schedule_id} — SOC {soc}%", "active_schedule_id": schedule_id})
             post_status_to_dashboard()
-            if manual_override and soc >= target_soc:
-                logging.info(f"Target SOC {target_soc}% reached for manual schedule {schedule_id}")
+            if soc >= reserve_value:
+                logging.info(f"Target SOC {reserve_value}% reached for this schedule {schedule_id}")
+                set_charge(BATTERY_RESERVE_END, grid_charging=False)
                 break
 
         mark_as_executed(schedule_id, "completed")
@@ -418,10 +419,15 @@ def main():
         post_status_to_dashboard()
 
         rows = fetch_pending_schedules()
+        status = get_battery_status()
+        grid_charging = status.get("grid_charging", False) if status else False
         if not rows:
             EXECUTOR_STATUS.update({"message": "No pending schedules — idle", "active_schedule_id": None})
             post_status_to_dashboard()
             sleep_with_heartbeat(EXECUTOR_IDLE_SLEEP_SEC)
+            if grid_charging:
+                logging.info("[Guard] Grid charging ON but idle → disabling.")
+                set_charge(reserve=BATTERY_RESERVE_END, grid_charging=False) # Additional safeguard
             continue
 
         # Pick next active or near-future schedule
@@ -439,6 +445,9 @@ def main():
         if next_row:
             process_schedule_row(next_row, now)
         else:
+            if grid_charging:
+                logging.info("[Guard] Grid charging ON but idle → disabling.")
+                set_charge(reserve=BATTERY_RESERVE_END, grid_charging=False) # Additional safeguard
             sleep_seconds = max((next_start - now).total_seconds() - EXECUTOR_SLEEP_AHEAD_SEC, EXECUTOR_POLL_INTERVAL) if next_start else EXECUTOR_IDLE_SLEEP_SEC
             EXECUTOR_STATUS.update({"message": f"Awaiting next schedule in {format_sec_to_hm(sleep_seconds)}"})
             logging.info(f"⚙️ Executor awaiting next schedule in {format_sec_to_hm(sleep_seconds)}")

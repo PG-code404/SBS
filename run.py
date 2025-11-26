@@ -12,7 +12,7 @@ load_dotenv()
 
 if __name__ == "__main__":
     from src.Keep_Alive import keep_alive
-    import main_bk
+    import main
 
     print("=" * 60)
     print("Battery Charging Scheduler - Starting...")
@@ -26,7 +26,7 @@ if __name__ == "__main__":
     keep_alive()
 
     try:
-        main_bk.main()
+        main.main()
     except KeyboardInterrupt:
         print("\n\nShutdown requested... exiting gracefully")
         sys.exit(0)
