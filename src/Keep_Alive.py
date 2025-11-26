@@ -139,7 +139,7 @@ def allow_internal_or_logged_in(func):
         key = request.headers.get("x-api-key") or request.args.get("api_key")
         if key and KEEP_ALIVE_API_KEY and key == KEEP_ALIVE_API_KEY:
             return func(*args, **kwargs)
-        print(f"[Auth] ❌ Unauthorized request from {remote} with key={key}")
+        print(f"[Auth] ❌ Unauthorized request from {remote} with API key={'provided' if key else 'none'}")
         return jsonify({"error": "Unauthorized"}), 401
 
     return wrapper
