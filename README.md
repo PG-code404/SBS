@@ -8,7 +8,13 @@
 It integrates **Octopus Agile** dynamic tariffs, **NetZero API** for Tesla Powerwall control, and **solar forecasting** to schedule charging during the cheapest and cleanest energy periods.  
 The system runs autonomously with a **Flask web dashboard** for monitoring and control, **Google OAuth** authentication, and **automated scheduling logic** using **real-time data**.
 
+## Screens:
+<img width="652" height="330" alt="Login page" src="https://github.com/user-attachments/assets/8e904bbd-72fd-497b-b3af-ce9d421b149d" />
+
+<img width="960" height="785" alt="Dashboard" src="https://github.com/user-attachments/assets/a993322f-34d6-4eff-9785-b3d1c6132e30" />
+
 If you would like to sponsor me financially, then please use [Paypal](https://paypal.me/helloPGanesan)
+<br />[New to Octopus?](https://share.octopus.energy/abundant-silver-156) you could use my referral so both can save some bills 
 ---
 ## 🌞 Key Features
 - 🔋 **Automated Tesla Powerwall charge scheduling** based on Octopus Agile rates  
@@ -174,3 +180,6 @@ Commercial redistribution, resale, or SaaS deployment is strictly prohibited wit
 
 
 **"Empowering sustainable energy decisions through smart automation." ⚡**
+
+
+
