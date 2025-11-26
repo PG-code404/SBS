@@ -72,4 +72,4 @@ LONGITUDE = LOCATION["longitude"]
 TIMEZONE = LOCATION["timezone"]
 
 if __name__ == "__main__":
-    print(LOCATION)
+    print(f"✅ Location loaded for postcode: {LOCATION['postcode']}, timezone: {LOCATION['timezone']}")
