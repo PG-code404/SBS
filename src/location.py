@@ -52,7 +52,7 @@ def get_location_details():
         with open(LOCATION_CACHE, "w") as f:
             json.dump(location_info, f, indent=2)
 
-        print(f"✅ Location cached: {location_info}")
+        print(f"✅ Location cached for postcode: {CUST_POSTCODE}")
         return location_info
 
     except Exception as e:
