@@ -2,12 +2,12 @@
 import os
 import json
 import requests
-from config.config import POSTCODE_URL_TEMPLATE, LOCATION_CACHE
+from config.config import POSTCODE_URL_TEMPLATE, LOCATION_CACHE, CUST_POSTCODE
 
 # -----------------------------
 # Customer Location (auto-resolve)
 # -----------------------------
-CUST_POSTCODE = os.getenv("CUST_POSTCODE", "SN40GJ")
+CUST_POSTCODE = "XY991AA" if not CUST_POSTCODE else CUST_POSTCODE
 
 
 def get_location_details():
@@ -72,4 +72,4 @@ LONGITUDE = LOCATION["longitude"]
 TIMEZONE = LOCATION["timezone"]
 
 if __name__ == "__main__":
-    print(LOCATION)
+    print("✅ Location loaded successfully.")
